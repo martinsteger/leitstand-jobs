@@ -1,5 +1,17 @@
 /*
- * (c) RtBrick, Inc - All rights reserved, 2015 - 2019
+ * Copyright 2020 RtBrick Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.  You may obtain a copy
+ * of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package io.leitstand.jobs.model;
 
@@ -9,14 +21,18 @@ import static io.leitstand.commons.messages.MessageFactory.createMessage;
 import static io.leitstand.commons.model.ObjectUtil.not;
 import static io.leitstand.commons.model.ObjectUtil.optional;
 import static io.leitstand.jobs.model.Job.findByJobId;
+import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobFlow.newJobFlow;
+import static io.leitstand.jobs.service.JobId.jobId;
 import static io.leitstand.jobs.service.JobInfo.newJobInfo;
+import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobProgress.newJobProgress;
 import static io.leitstand.jobs.service.JobSchedule.newJobSchedule;
 import static io.leitstand.jobs.service.JobSettings.newJobSettings;
 import static io.leitstand.jobs.service.JobSubmission.newJobSubmission;
 import static io.leitstand.jobs.service.JobTask.newJobTask;
 import static io.leitstand.jobs.service.JobTasks.newJobTasks;
+import static io.leitstand.jobs.service.JobType.jobType;
 import static io.leitstand.jobs.service.ReasonCode.JOB0100E_JOB_NOT_FOUND;
 import static io.leitstand.jobs.service.ReasonCode.JOB0101I_JOB_SETTINGS_UPDATED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0102E_JOB_SETTINGS_IMMUTABLE;
@@ -36,6 +52,7 @@ import static io.leitstand.jobs.service.TaskState.FAILED;
 import static io.leitstand.jobs.service.TaskState.READY;
 import static io.leitstand.jobs.service.TaskState.REJECTED;
 import static io.leitstand.jobs.service.TaskState.TIMEOUT;
+import static io.leitstand.jobs.service.TaskState.taskState;
 import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
 import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
 import static java.lang.String.format;
@@ -66,11 +83,9 @@ import io.leitstand.inventory.service.ElementGroupId;
 import io.leitstand.inventory.service.ElementGroupSettings;
 import io.leitstand.inventory.service.ElementId;
 import io.leitstand.inventory.service.ElementSettings;
-import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobFlow;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobInfo;
-import io.leitstand.jobs.service.JobName;
 import io.leitstand.jobs.service.JobProgress;
 import io.leitstand.jobs.service.JobQuery;
 import io.leitstand.jobs.service.JobService;
@@ -78,13 +93,12 @@ import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.JobTask;
 import io.leitstand.jobs.service.JobTasks;
-import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.security.auth.Authenticated;
-import io.leitstand.security.auth.UserId;
+import io.leitstand.security.auth.UserName;
 @Service
 public class DefaultJobService implements JobService {
 	
@@ -123,7 +137,7 @@ public class DefaultJobService implements JobService {
 
 	@Inject
 	@Authenticated
-	private UserId user;
+	private UserName user;
 	
 	protected DefaultJobService() {
 		
@@ -134,7 +148,7 @@ public class DefaultJobService implements JobService {
 					  InventoryClient inventory,
 					  JobEditor jobEditor,
 					  Messages messages,
-					  UserId user){
+					  UserName user){
 		this.repository = repository;
 		this.db = db;
 		this.inventory = inventory;
@@ -499,11 +513,11 @@ public class DefaultJobService implements JobService {
 		
 		return db.executeQuery(prepare(sql,args), 
 							  rs -> newJobSettings()
-							  		.withJobApplication(JobApplication.valueOf(rs.getString(1)))
-							  		.withJobType(JobType.valueOf(rs.getString(2)))
-							  		.withJobId(JobId.valueOf(rs.getString(3)))
-							  		.withJobName(JobName.valueOf(rs.getString(4)))
-									.withJobState(TaskState.valueOf(rs.getString(5)))
+							  		.withJobApplication(jobApplication(rs.getString(1)))
+							  		.withJobType(jobType(rs.getString(2)))
+							  		.withJobId(jobId(rs.getString(3)))
+							  		.withJobName(jobName(rs.getString(4)))
+									.withJobState(taskState(rs.getString(5)))
 									.withDateModified(rs.getTimestamp(6))
 									.withSchedule(newJobSchedule()
 												  .withAutoResume(parseBoolean(rs.getString(7)))

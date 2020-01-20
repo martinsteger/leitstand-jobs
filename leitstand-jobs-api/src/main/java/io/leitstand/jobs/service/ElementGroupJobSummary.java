@@ -1,5 +1,17 @@
 /*
- * (c) RtBrick, Inc - All rights reserved, 2015 - 2019
+ * Copyright 2020 RtBrick Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.  You may obtain a copy
+ * of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package io.leitstand.jobs.service;
 
@@ -10,7 +22,7 @@ import javax.json.bind.annotation.JsonbTypeAdapter;
 
 import io.leitstand.commons.jsonb.IsoDateAdapter;
 import io.leitstand.commons.model.ValueObject;
-import io.leitstand.security.auth.UserId;
+import io.leitstand.security.auth.UserName;
 
 public class ElementGroupJobSummary extends ValueObject {
 	
@@ -36,8 +48,8 @@ public class ElementGroupJobSummary extends ValueObject {
 			return this;
 		}
 
-		public Builder withJobOwner(UserId userId){
-			job.jobOwner = userId;
+		public Builder withJobOwner(UserName userName){
+			job.jobOwner = userName;
 			return this;
 		}
 
@@ -63,7 +75,7 @@ public class ElementGroupJobSummary extends ValueObject {
 	private JobName jobName;
 	
 	@JsonbProperty
-	private UserId jobOwner;
+	private UserName jobOwner;
 	
 	@JsonbProperty("job_state")
 	private TaskState jobState;
@@ -84,7 +96,7 @@ public class ElementGroupJobSummary extends ValueObject {
 		return jobState;
 	}
 	
-	public UserId getJobOwner() {
+	public UserName getJobOwner() {
 		return jobOwner;
 	}
 	

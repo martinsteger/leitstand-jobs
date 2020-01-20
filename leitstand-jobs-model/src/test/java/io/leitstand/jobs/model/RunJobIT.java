@@ -1,5 +1,17 @@
 /*
- * (c) RtBrick, Inc - All rights reserved, 2015 - 2019
+ * Copyright 2020 RtBrick Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.  You may obtain a copy
+ * of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package io.leitstand.jobs.model;
 
@@ -10,6 +22,7 @@ import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
 import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
+import static io.leitstand.security.auth.UserName.userName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -37,7 +50,7 @@ import io.leitstand.jobs.service.TaskName;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.jobs.service.TaskType;
-import io.leitstand.security.auth.UserId;
+import io.leitstand.security.auth.UserName;
 
 public class RunJobIT extends JobsIT{
 
@@ -98,7 +111,7 @@ public class RunJobIT extends JobsIT{
 									 mock(InventoryClient.class),
 									 new JobEditor(repository),
 									 mock(Messages.class),
-									 UserId.valueOf("dummy"));
+									 userName("dummy"));
 
 		jobId = randomJobId();
 		start 	 = task(START);

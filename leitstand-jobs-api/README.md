@@ -1,6 +1,6 @@
 # Leitstand Job API
 
-The Leistand Job API is a _transactional_ API to manage scheduled jobs and their corresponding tasks. 
+The Leitstand Job API is a _transactional_ API to manage scheduled jobs and their corresponding tasks. 
 The [leitstand-jobs-model](../leitstand-jobs-model/README.md) contains the Leitstand Job API implementation.
 
 ## Services

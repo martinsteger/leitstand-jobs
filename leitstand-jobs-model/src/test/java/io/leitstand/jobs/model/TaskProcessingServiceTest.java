@@ -1,9 +1,22 @@
 /*
- * (c) RtBrick, Inc - All rights reserved, 2015 - 2019
+ * Copyright 2020 RtBrick Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.  You may obtain a copy
+ * of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package io.leitstand.jobs.model;
 
 import static io.leitstand.jobs.service.JobId.randomJobId;
+import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.doReturn;
@@ -21,7 +34,6 @@ import javax.json.JsonReader;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.leitstand.jobs.service.JobName;
 import io.leitstand.jobs.service.TaskState;
 
 public class TaskProcessingServiceTest {
@@ -46,7 +58,7 @@ public class TaskProcessingServiceTest {
 		service = new TaskProcessingService(processors);
 		job = mock(Job.class);
 		when(job.getJobId()).thenReturn(randomJobId());
-		when(job.getJobName()).thenReturn(JobName.valueOf("unit-job_name"));
+		when(job.getJobName()).thenReturn(jobName("unit-job_name"));
 		task = mock(Job_Task.class);
 		when(task.getJob()).thenReturn(job);
 		when(task.getTaskId()).thenReturn(randomTaskId());

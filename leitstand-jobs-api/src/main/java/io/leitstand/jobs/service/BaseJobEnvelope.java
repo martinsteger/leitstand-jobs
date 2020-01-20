@@ -1,5 +1,17 @@
 /*
- * (c) RtBrick, Inc - All rights reserved, 2015 - 2019
+ * Copyright 2020 RtBrick Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.  You may obtain a copy
+ * of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package io.leitstand.jobs.service;
 
@@ -10,7 +22,7 @@ import javax.json.bind.annotation.JsonbProperty;
 import io.leitstand.commons.model.ValueObject;
 import io.leitstand.inventory.service.ElementGroupId;
 import io.leitstand.inventory.service.ElementGroupName;
-import io.leitstand.security.auth.UserId;
+import io.leitstand.security.auth.UserName;
 
 
 public class BaseJobEnvelope extends ValueObject {
@@ -65,9 +77,9 @@ public class BaseJobEnvelope extends ValueObject {
 			return (B) this;
 		}
 		
-		public B withJobOwner(UserId userId) {
+		public B withJobOwner(UserName userName) {
 			assertNotInvalidated(getClass(), object);
-			((BaseJobEnvelope)object).jobOwner = userId;
+			((BaseJobEnvelope)object).jobOwner = userName;
 			return (B) this;
 		}
 		
@@ -102,7 +114,7 @@ public class BaseJobEnvelope extends ValueObject {
 	private JobApplication jobApplication;
 	
 	@JsonbProperty("job_owner")
-	private UserId jobOwner;
+	private UserName jobOwner;
 	@JsonbProperty("job_state")
 	private TaskState jobState;
 
@@ -114,7 +126,7 @@ public class BaseJobEnvelope extends ValueObject {
 		return jobName;
 	}
 
-	public UserId getJobOwner() {
+	public UserName getJobOwner() {
 		return jobOwner;
 	}
 
