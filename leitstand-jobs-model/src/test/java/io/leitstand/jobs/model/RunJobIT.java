@@ -50,7 +50,7 @@ import io.leitstand.jobs.service.TaskName;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.jobs.service.TaskType;
-import io.leitstand.security.auth.UserName;
+import io.leitstand.security.auth.UserContext;
 
 public class RunJobIT extends JobsIT{
 
@@ -105,13 +105,16 @@ public class RunJobIT extends JobsIT{
 		// Create repository to test DB interaction
 		Repository repository = new Repository(getEntityManager());
 
+		UserContext userContext = mock(UserContext.class);
+		when(userContext.getUserName()).thenReturn(userName("dummy"));
+		
 		// Create job service and IT job definition.
 		jobs = new DefaultJobService(repository, 
 									 mock(DatabaseService.class),
 									 mock(InventoryClient.class),
 									 new JobEditor(repository),
 									 mock(Messages.class),
-									 userName("dummy"));
+									 userContext);
 
 		jobId = randomJobId();
 		start 	 = task(START);
