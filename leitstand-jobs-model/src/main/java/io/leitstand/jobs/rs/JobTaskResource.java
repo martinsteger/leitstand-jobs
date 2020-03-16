@@ -15,13 +15,13 @@
  */
 package io.leitstand.jobs.rs;
 
+import static io.leitstand.jobs.rs.Scopes.JOB;
+import static io.leitstand.jobs.rs.Scopes.JOB_READ;
+import static io.leitstand.jobs.rs.Scopes.JOB_TASK;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.security.auth.Role.OPERATOR;
-import static io.leitstand.security.auth.Role.SYSTEM;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import javax.annotation.security.RolesAllowed;
-import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
 import javax.json.JsonObject;
 import javax.validation.Valid;
@@ -31,19 +31,21 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 
+import io.leitstand.commons.rs.Resource;
 import io.leitstand.jobs.flow.TaskUpdateFlow;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskInfo;
 import io.leitstand.jobs.service.JobTaskService;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
+import io.leitstand.security.auth.Scopes;
 
-@RequestScoped
+@Resource
+@Scopes({JOB,JOB_TASK})
 @Path("/jobs")
-@Consumes(MediaType.APPLICATION_JSON)
-@Produces(MediaType.APPLICATION_JSON)
+@Consumes(APPLICATION_JSON)
+@Produces(APPLICATION_JSON)
 public class JobTaskResource {
 	
 	@Inject
@@ -54,7 +56,6 @@ public class JobTaskResource {
 	
 	@PUT
 	@Path("/{job_id}/tasks/{task_id}/task_state")
-	@RolesAllowed({OPERATOR,SYSTEM})
 	public void updateTask(@Valid @PathParam("job_id") JobId jobId, 
 	                       @Valid @PathParam("task_id") TaskId taskId,
 	                       TaskState state){
@@ -66,7 +67,6 @@ public class JobTaskResource {
 	
 	@PUT
 	@Path("/{job_id}/tasks/{task_id}/outcome")
-	@RolesAllowed({OPERATOR,SYSTEM})
 	public void updateTask(@Valid @PathParam("job_id") JobId jobId, 
 	                       @Valid @PathParam("task_id") TaskId taskId,
 	                       JsonObject json){
@@ -84,6 +84,7 @@ public class JobTaskResource {
 	}
 	
 	@GET
+	@Scopes({JOB,JOB_READ,JOB_TASK})
 	@Path("/{job_id}/tasks/{task_id}")
 	public JobTaskInfo getTask(@Valid @PathParam("job_id") JobId jobId, 
 	                          @Valid @PathParam("task_id") TaskId taskId){

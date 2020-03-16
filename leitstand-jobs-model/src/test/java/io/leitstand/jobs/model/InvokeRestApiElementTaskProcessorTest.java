@@ -38,7 +38,6 @@ import javax.ws.rs.core.Response.Status;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.leitstand.jobs.service.JobName;
 import io.leitstand.jobs.service.TaskState;
 
 public class InvokeRestApiElementTaskProcessorTest {

@@ -140,5 +140,13 @@ Next, the connector invokes the actual REST API endpoint and sends the operation
 The task state update triggers the search for subsequent tasks eligible for execution.
 A task can be executed if all preceding tasks have been completed successfully.
 
+## Scopes
 
+The following scopes exist for managing job access privileges:
+
+| Scope      | Description                                                                                      |
+|:-----------|:-------------------------------------------------------------------------------------------------|
+| _job_      | Full job scheduler access including deletion of completed jobs and cancellation of running jobs. |
+| _job.read_ | Readonly job scheduler access.                                                                   |
+| _job.task_ | Manage job tasks including updating the processing state of a single task.                       |
 

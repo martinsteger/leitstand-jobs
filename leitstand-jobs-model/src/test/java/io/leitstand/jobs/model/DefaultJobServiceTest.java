@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Date;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -48,7 +49,7 @@ import io.leitstand.commons.model.Query;
 import io.leitstand.commons.model.Repository;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobSubmission;
-import io.leitstand.security.auth.UserName;
+import io.leitstand.security.auth.UserContext;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DefaultJobServiceTest {
@@ -69,10 +70,15 @@ public class DefaultJobServiceTest {
 	private Messages messages;
 	
 	@Mock
-	private UserName userName = userName("unittest");
+	private UserContext userContext;
 	
 	@InjectMocks
 	private DefaultJobService service = new DefaultJobService();
+	
+	@Before
+	public void initUserContext() {
+		when(userContext.getUserName()).thenReturn(userName("junit"));
+	}
 	
 	@Test
 	public void store_job_creates_new_job_if_no_job_with_specified_id_exists() {

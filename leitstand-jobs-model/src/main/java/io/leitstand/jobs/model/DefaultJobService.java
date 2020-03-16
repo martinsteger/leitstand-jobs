@@ -97,8 +97,7 @@ import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
-import io.leitstand.security.auth.Authenticated;
-import io.leitstand.security.auth.UserName;
+import io.leitstand.security.auth.UserContext;
 @Service
 public class DefaultJobService implements JobService {
 	
@@ -136,8 +135,7 @@ public class DefaultJobService implements JobService {
 	private Messages messages;
 
 	@Inject
-	@Authenticated
-	private UserName user;
+	private UserContext user;
 	
 	protected DefaultJobService() {
 		
@@ -148,7 +146,7 @@ public class DefaultJobService implements JobService {
 					  InventoryClient inventory,
 					  JobEditor jobEditor,
 					  Messages messages,
-					  UserName user){
+					  UserContext user){
 		this.repository = repository;
 		this.db = db;
 		this.inventory = inventory;
@@ -265,7 +263,7 @@ public class DefaultJobService implements JobService {
 						  submission.getJobType(),
 						  jobId,
 						  submission.getJobName(),
-						  user); 
+						  user.getUserName()); 
 			job.setGroupId(submission.getGroupId());
 			repository.add(job);
 			LOG.fine(() -> format("%s: Job %s (%s) stored. Owner: %s", 
