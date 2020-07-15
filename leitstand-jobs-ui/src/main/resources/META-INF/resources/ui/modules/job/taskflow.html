@@ -1,0 +1,12 @@
+<ui-view-header>
+	<ui-breadcrumbs>
+		<ui-breadcrumb href="jobs.html">Jobs</ui-breadcrumb>
+		<ui-breadcrumb href="tasks.html?job={{job_id}}">Job Tasks</ui-breadcrumb>
+		<ui-breadcrumb>Taskflow</ui-breadcrumb>
+	</ui-breadcrumbs>
+	<ui-title>Taskflow</ui-title>
+	<ui-subtitle>Inspect taskflow and progress of job {{job_name}}</ui-subtitle>
+</ui-view-header>
+<job-taskflow>
+	<!-- Taskflow displays all tasks including their state and order of execution -->
+</job-taskflow>

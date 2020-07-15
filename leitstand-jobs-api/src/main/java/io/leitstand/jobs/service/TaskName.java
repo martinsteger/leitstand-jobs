@@ -25,12 +25,20 @@ public class TaskName extends Scalar<String> {
 
 	private static final long serialVersionUID = 1L;
 
+	public static TaskName taskName(String name) {
+	    return valueOf(name);
+	}
+	
+	public static TaskName taskName(Scalar<String> name) {
+	    return valueOf(name);
+	}
+	
 	public static TaskName valueOf(Scalar<String> name) {
-		return Scalar.fromString(name.getValue(),TaskName::new);
+		return fromString(name.getValue(),TaskName::new);
 	}
 	
 	public static TaskName valueOf(String name) {
-		return Scalar.fromString(name,TaskName::new);
+		return fromString(name,TaskName::new);
 	}
 	
 	private String value;

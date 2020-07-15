@@ -45,9 +45,9 @@ public class ParallelizeSerialFlowIT extends JobsIT{
 	public void setup_serial_sequence(){
 		this.service = new JobEditor(new Repository(getEntityManager()));
 		this.flow = new Job(null,null,randomJobId(), null, null);
-		Job_Task first  = new Job_Task(flow,null, new TaskId("PF_TASK_1"), null,null,null);
-		Job_Task second = new Job_Task(flow,null, new TaskId("PF_TASK_2"), null,null,null);
-		Job_Task third  = new Job_Task(flow,null, new TaskId("PF_TASK_3"), null,null,null);
+		Job_Task first  = new Job_Task(flow, null, new TaskId("PF_TASK_1"), null,null,null);
+		Job_Task second = new Job_Task(flow, null, new TaskId("PF_TASK_2"), null,null,null);
+		Job_Task third  = new Job_Task(flow, null, new TaskId("PF_TASK_3"), null,null,null);
 		first.addSuccessor(second);
 		second.addSuccessor(third);
 		flow.addTask(first);

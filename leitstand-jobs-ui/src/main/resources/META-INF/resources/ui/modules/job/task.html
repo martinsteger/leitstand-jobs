@@ -1,0 +1,85 @@
+<!--
+(c) RtBrick, Inc - All rights reserved, 2015 - 2017
+-->
+<ui-view-header>
+	<ui-breadcrumbs>
+		<ui-breadcrumb href="jobs.html">Jobs</ui-breadcrumb>
+		<ui-breadcrumb href="tasks.html?job={{job_id}}">Job Tasks</ui-breadcrumb>
+		<ui-breadcrumb>Task Details</ui-breadcrumb>
+	</ui-breadcrumbs>
+	<ui-title>Task Details</ui-title>
+	<ui-subtitle>Inspect task {{task_name}} details.</ui-subtitle>
+</ui-view-header>
+
+<ui-details>
+	<!-- {{#group_name}}  -->
+	<ui-property>
+		<ui-label>Pod</ui-label>
+		<ui-value><a href="/ui/views/inventory/pods/pod.html?group={{group_id}}" title="Open pod settings">{{.}}</ui-value>
+	</ui-property>
+	<!-- {{/group_name}}  -->
+	<!-- {{#element_role}}  -->
+	<ui-property>
+		<ui-label>Element Role</ui-label>
+		<ui-value>{{.}}</ui-value>
+	</ui-property>
+	<!-- {{/element_role}}  -->
+	
+	<!-- {{#element_name}}  -->
+	<ui-property>
+		<ui-label>Element Name</ui-label>
+		<ui-value><a href="/ui/views/inventory/element/element.html?group={{group_id}}&element={{element_id}}" title="Open element settings">{{.}}</a></ui-value>
+	</ui-property>
+	<!-- {{/element_name}}  -->
+	<!-- {{#element_alias}}  -->
+	<ui-property>
+		<ui-label>Element Alias</ui-label>
+		<ui-value>{{.}}</ui-value>
+	</ui-property>
+	<!-- {{/element_alias}}  -->
+	<ui-property>
+		<ui-label>Job Application</ui-label>
+		<ui-value>{{job_application}}</ui-value>
+	</ui-property>
+	<ui-property>
+		<ui-label>Job Type</ui-label>
+		<ui-value>{{job_type}}</ui-value>
+	</ui-property>
+	<ui-property>
+		<ui-label>Job Name</ui-label>
+		<ui-value><a href="job.html?job={{job_id}}">{{job_name}}</a></ui-value>
+	</ui-property>
+	<!-- {{#job_owner}} -->
+	<ui-property>
+		<ui-label>Job Owner</ui-label>
+		<ui-value>{{.}}</ui-value>
+	</ui-property>
+	<!-- {{/job_owner}} -->
+	<ui-property>
+		<ui-label>Task Type</ui-label>
+		<ui-value>{{task_type}}</ui-value>
+	</ui-property>
+	<ui-property>
+		<ui-label>Task Name</ui-label>
+		<ui-value>{{task_name}}</ui-value>
+	</ui-property>
+	<ui-property>
+		<ui-label>Task State</ui-label>
+		<ui-value><span class="extra-small {{task_state}}">{{task_state}}</ui-value>
+	</ui-property>
+	<ui-property>
+		<ui-label>Date Modified</ui-label>
+		<ui-value><ui-date readonly>{{date_modified}}</ui-date></ui-value>
+	</ui-property>
+</ui-details>
+<!-- {{#editable}} -->
+<ui-form>
+	<task-editor name="parameters" style="height:40em"></task-editor>
+	<ui-actions>
+	    <ui-button name="save-task" danger>Save parameters</ui-button>
+	</ui-actions>
+</ui-form>
+<!-- {{/editable}} -->
+<!-- {{^editable}} -->
+<ui-code>{{json}}</ui-code>
+<!-- {{/editable}} -->

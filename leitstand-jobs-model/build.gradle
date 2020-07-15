@@ -6,7 +6,6 @@ plugins {
 dependencies {
     compile project(':leitstand-jobs-api')
     compile 'io.leitstand:leitstand-commons:' + findProperty("versions.leitstand-commons")
-    compile 'io.leitstand:leitstand-etc:' + findProperty("versions.leitstand-commons")
     compile 'io.leitstand:leitstand-template:' + findProperty("versions.leitstand-commons")
     compile 'io.leitstand.inventory:leitstand-inventory-api:' + findProperty("versions.leitstand-inventory")
     compile 'io.leitstand.security:leitstand-auth:' + findProperty("versions.leitstand-security")

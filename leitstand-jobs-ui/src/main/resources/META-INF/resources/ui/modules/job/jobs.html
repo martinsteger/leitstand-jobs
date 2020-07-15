@@ -1,0 +1,62 @@
+<!--
+(c) RtBrick, Inc - All rights reserved, 2015 - 2017
+-->
+<ui-view-header>
+	<ui-title>Jobs</ui-title>
+	<ui-subtitle>Review the currently active or scheduled jobs</ui-subtitle>
+</ui-view-header>
+<ui-form>
+	<ui-filter name="filter" bind="query.filter">
+		<ui-label>Filter</ui-label>
+		<ui-note>Search for jobs by pod name, job name, element role or state</ui-note>
+		<ui-options>
+			<ui-checkbox name="running" value="true" bind="query.running">
+				<ui-label>Show running jobs only</ui-label>
+				<ui-note>Scheduled or completed jobs will not be displayed</ui-note>
+			</ui-checkbox>
+			<ui-checkbox name="after" value="true">
+				<ui-label>Search jobs scheduler after <ui-date bind="query.after">{{query.after}}</ui-date></ui-label>
+				<ui-note>All jobs scheduled before the selected timestamp will not be displayed</ui-note>	
+			</ui-checkbox>		
+			<ui-checkbox name="before" value="true">
+				<ui-label>Search jobs scheduled before <ui-date bind="query.before">{{query.before}}</ui-date></ui-label>
+				<ui-note>All jobs scheduled after the selected timestamp will not be displayed.
+			</ui-checkbox>
+		</ui-options>
+	</ui-filter>
+	<!-- {{#jobs.length}}  -->
+	<ui-group>
+	<ui-label>Jobs</ui-label>
+	<table id="items" class="list">
+		<thead>
+		<tr>
+			<th class="text">Name</th>
+			<th class="text">Application</th>
+			<th class="text">Type</th>
+			<th>State</th>
+			<th>Scheduled at</th>
+			<th>Last modified</th>
+		</tr>
+		</thead>
+		<tbody>
+			<!-- {{#jobs}} -->
+			<tr>
+				<td class="text" ><a href="/ui/views/job/tasks.html?job={{job_id}}" title="Show job details">{{job_name}}</a></td>
+				<td class="text" >{{job_application}}</td>
+				<td class="text" >{{job_type}}</td>
+				<td><span class="{{job_state}}">{{job_state}}</span></td>
+				<td><ui-date readonly>{{schedule.date_scheduled}}</ui-date></td>
+				<td><ui-date readonly>{{date_modified}}</ui-date></td>
+			</tr>
+			<!-- {{/jobs}} -->
+		</tbody>
+	</table>
+	</ui-group>
+	<!-- {{/jobs.length}}  -->
+	<!-- {{^jobs}} -->
+		<ui-blankslate>
+			<ui-title>No jobs found!</ui-title>
+			<ui-note>No jobs match the current filter.</ui-note>
+		</ui-blankslate>
+	<!-- {{/jobs}} -->
+</ui-form>

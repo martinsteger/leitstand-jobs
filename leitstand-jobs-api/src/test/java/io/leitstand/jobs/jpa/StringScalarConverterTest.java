@@ -16,11 +16,11 @@
 package io.leitstand.jobs.jpa;
 
 import static java.util.Arrays.asList;
+import static java.util.UUID.randomUUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.Collection;
-import java.util.UUID;
 
 import javax.persistence.AttributeConverter;
 
@@ -31,19 +31,26 @@ import org.junit.runners.Parameterized.Parameters;
 
 import io.leitstand.commons.model.Scalar;
 import io.leitstand.jobs.service.JobId;
+import io.leitstand.jobs.service.JobName;
+import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskId;
+import io.leitstand.jobs.service.TaskName;
+import io.leitstand.jobs.service.TaskType;
 
 @RunWith(Parameterized.class)
 public class StringScalarConverterTest {
 
 	@Parameters
 	public static Collection<Object[]> converters(){
-		String uuid = UUID.randomUUID().toString();
-		Object[][] converters = new Object[][]{
-			{new JobIdConverter(),  	uuid	,	new JobId(uuid)},
-			{new TaskIdConverter(),	uuid,	new TaskId(uuid)},
-		};
-		return asList(converters);
+		String uuid = randomUUID().toString();
+		return asList(new Object[][]{
+			{new JobIdConverter(),         uuid,         new JobId(uuid)},
+			{new JobNameConverter(),       "job-name",   new JobName("job-name")},
+			{new JobTypeConverter(),       "job-type",   new JobType("job-type")},
+			{new TaskIdConverter(),	       uuid,	     new TaskId(uuid)},
+			{new TaskNameConverter(),      "task-name",  new TaskName("task-name")},
+			{new TaskTypeConverter(),      "task-type",  new TaskType("task-type")}
+		});
 	}
 	
 	private AttributeConverter<Scalar<String>,String> converter;

@@ -1,0 +1,46 @@
+<!--
+(c) RtBrick, Inc - All rights reserved, 2015 - 2017
+-->
+<ui-view-header>
+	<ui-breadcrumbs>
+		<ui-breadcrumb href="jobs.html">Jobs</ui-breadcrumb>
+		<ui-breadcrumb>{{job_name}}</ui-breadcrumb>
+	</ui-breadcrumbs>
+	<ui-title>Job Settings <span class="{{job_state}}">{{job_state}}</span></ui-title>
+	<ui-subtitle>Settings of job {{job_name}}</ui-subtitle>
+</ui-view-header>
+<ui-form rolesAllowed="Operator">
+	<ui-group>
+		<ui-label>General Settings</ui-label>
+		<ui-input name="job_name">
+			<ui-label>Job Name</ui-label>
+			<ui-note>A human-friendly job name explaining the purpose of this job.</ui-note>
+		</ui-input>
+		<ui-input name="job_owner" readonly>
+			<ui-label>Job Owner</ui-label>
+			<ui-note>The user who has scheduled this job.</ui-note>
+		</ui-input>
+	</ui-group>
+	<fieldset id="schedule">
+		<ui-label>Schedule</ui-label>
+		<ui-radio name="start_mode" value="immediate" {{disabled}}>
+			<ui-label>Start job immediately</ui-label>
+			<ui-note>Starts the job immediately. This option is intended for launching processes in a maintenance window.</ui-note>
+		</ui-radio>
+		<ui-radio name="start_mode" value="scheduled" default {{disabled}}>
+			<ui-label>Start job at <ui-date name="date_scheduled" bind="schedule.date_scheduled">{{schedule.date_scheduled}}</ui-date></ui-label>
+			<ui-note>Schedule a job at the selected date.</ui-note>
+		</ui-radio>
+		<ui-checkbox name="suspend" value="true" {{disabled}}>
+			<ui-label>Suspend update when not completed until <ui-date bind="schedule.date_suspend">{{default_date_suspend}}</ui-date></ui-label>
+			<ui-note>Suspend execution of all remaining tasks that have not been completed until the selected date.</ui-note>
+		</ui-checkbox>	
+		<ui-checkbox name="auto_resume" value="true" when="suspend" {{disabled}}>
+			<ui-label>Resume suspended job</ui-label>
+			<ui-note>Resume suspended job at the same time frame on the next day</ui-note>
+		</ui-checkbox>
+	</ui-group>
+	<ui-actions>
+		<ui-button name="save-settings" primary>Save settings</ui-button>
+	</ui-actions>
+</ui-form>

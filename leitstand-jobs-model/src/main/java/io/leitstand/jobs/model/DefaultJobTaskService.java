@@ -15,11 +15,17 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.commons.messages.MessageFactory.createMessage;
+import static io.leitstand.commons.model.ObjectUtil.isDifferent;
 import static io.leitstand.commons.model.ObjectUtil.not;
 import static io.leitstand.commons.model.ObjectUtil.optional;
 import static io.leitstand.jobs.model.Job.findByJobId;
 import static io.leitstand.jobs.model.Job_Task.findByTaskId;
 import static io.leitstand.jobs.service.JobTaskInfo.newJobTaskInfo;
+import static io.leitstand.jobs.service.ReasonCode.JOB0203E_TASK_OWNED_BY_OTHER_JOB;
+import static io.leitstand.jobs.service.ReasonCode.JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB;
+import static io.leitstand.jobs.service.ReasonCode.JOB0205E_CANNOT_MODIFY_COMPLETED_TASK;
+import static io.leitstand.jobs.service.ReasonCode.JOB0206I_TASK_PARAMETER_UPDATED;
 import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskState.CONFIRM;
@@ -31,13 +37,18 @@ import java.util.List;
 
 import javax.enterprise.event.Event;
 import javax.inject.Inject;
+import javax.json.JsonObject;
 
+import io.leitstand.commons.ConflictException;
+import io.leitstand.commons.EntityNotFoundException;
+import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.model.Repository;
 import io.leitstand.commons.model.Service;
 import io.leitstand.inventory.service.ElementSettings;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskInfo;
 import io.leitstand.jobs.service.JobTaskService;
+import io.leitstand.jobs.service.ReasonCode;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
 
@@ -56,6 +67,9 @@ public class DefaultJobTaskService implements JobTaskService{
 	
 	@Inject
 	private TaskProcessingService processor;
+	
+	@Inject
+	private Messages messages;
 	
 	public DefaultJobTaskService() {
 		// EJB ctor
@@ -141,7 +155,15 @@ public class DefaultJobTaskService implements JobTaskService{
 	@Override
 	public JobTaskInfo getJobTask(JobId jobId, TaskId taskId) {
 		Job_Task task = repository.execute(findByTaskId(taskId));
+		if(task == null) {
+		    throw new EntityNotFoundException(ReasonCode.JOB0200E_TASK_NOT_FOUND, taskId);
+		}
+		
 		Job job = task.getJob();
+		if(isDifferent(jobId, task.getJobId())){
+		    throw new ConflictException(JOB0203E_TASK_OWNED_BY_OTHER_JOB, taskId);
+		}
+		
 		ElementSettings element = inventory.getElementSettings(task);
 		
 		return newJobTaskInfo()
@@ -164,5 +186,31 @@ public class DefaultJobTaskService implements JobTaskService{
 			   .withParameter(task.getParameters())
 			   .build();	
 	}
+
+    @Override
+    public void setTaskParameter(JobId jobId, TaskId taskId, JsonObject parameters) {
+        Job_Task task = repository.execute(findByTaskId(taskId));
+        if(task == null) {
+            throw new EntityNotFoundException(ReasonCode.JOB0200E_TASK_NOT_FOUND, taskId);
+        }
+        
+        Job job = task.getJob();
+        if(isDifferent(jobId, task.getJobId())){
+            throw new ConflictException(JOB0203E_TASK_OWNED_BY_OTHER_JOB, taskId);
+        }
+        
+        if(job.isRunning()) {
+            throw new ConflictException(JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB,taskId,jobId);
+        }
+        if(task.isSucceeded()) {
+            throw new ConflictException(JOB0205E_CANNOT_MODIFY_COMPLETED_TASK,taskId);
+        }
+        task.setParameter(parameters);
+        messages.add(createMessage(JOB0206I_TASK_PARAMETER_UPDATED, 
+                                   job.getJobId(),
+                                   job.getJobName(),
+                                   task.getTaskId(),
+                                   task.getTaskName()));
+    }
 
 }

@@ -373,10 +373,14 @@ public class Job extends VersionableEntity {
 	}
 	
 	private void traverse(Set<Job_Task> tasks, Job_Task task) {
+		for(Job_Task_Transition transition: task.getPredecessors()) {
+		    if(!tasks.contains(transition.getFrom())) {
+		        return;
+		    }
+		}
+	    
 		for(Job_Task_Transition transition : task.getSuccessors()) {
 			tasks.add(transition.getTo());
-		}
-		for(Job_Task_Transition transition : task.getSuccessors()) {
 			traverse(tasks, transition.getTo());
 		}
 	}

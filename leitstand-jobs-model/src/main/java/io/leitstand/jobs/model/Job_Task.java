@@ -189,7 +189,12 @@ public class Job_Task extends AbstractEntity{
 					TaskType taskType, 
 					TaskId taskId, 
 					TaskName taskName){
-		this(job,taskType,taskId,taskName,null,null);
+		this(job,
+		     taskType,
+		     taskId,
+		     taskName,
+		     null,
+		     null);
 	}
 	
 	public Job_Task(Job job, 
@@ -197,7 +202,12 @@ public class Job_Task extends AbstractEntity{
 					TaskId taskId, 
 					TaskName taskName, 
 					ElementId elementId){
-		this(job,taskType,taskId,taskName,elementId,null);
+		this(job,
+		     taskType,
+		     taskId,
+		     taskName,
+		     elementId,
+		     null);
 	}
 	
 	public Job_Task(Job job, 
@@ -205,7 +215,12 @@ public class Job_Task extends AbstractEntity{
 					TaskId taskId, 
 					TaskName taskName, 
 					JsonObject parameter){
-		this(job,taskType,taskId,taskName,null,parameter);
+		this(job,
+		     taskType,
+		     taskId,
+		     taskName,
+		     null,
+		     parameter);
 	}
 	
 	
@@ -378,6 +393,10 @@ public class Job_Task extends AbstractEntity{
 		return unmodifiableList(successors);
 	}
 
+	public List<Job_Task_Transition> getPredecessors() {
+        return unmodifiableList(predecessors);
+    }
+	
 
 	public void setCanary(boolean suspend) {
 		this.suspend = suspend;
@@ -456,6 +475,5 @@ public class Job_Task extends AbstractEntity{
 	public JobApplication getJobApplication() {
 		return job.getJobApplication();
 	}
-
 	
 }
