@@ -16,11 +16,11 @@
 package io.leitstand.jobs.json;
 
 import static java.util.Arrays.asList;
+import static java.util.UUID.randomUUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.Collection;
-import java.util.UUID;
 
 import javax.json.bind.adapter.JsonbAdapter;
 
@@ -31,23 +31,33 @@ import org.junit.runners.Parameterized.Parameters;
 
 import io.leitstand.commons.model.Scalar;
 import io.leitstand.jobs.jsonb.JobIdAdapter;
+import io.leitstand.jobs.jsonb.JobNameAdapter;
+import io.leitstand.jobs.jsonb.JobTypeAdapter;
 import io.leitstand.jobs.jsonb.TaskIdAdapter;
+import io.leitstand.jobs.jsonb.TaskNameAdapter;
+import io.leitstand.jobs.jsonb.TaskTypeAdapter;
 import io.leitstand.jobs.service.JobId;
+import io.leitstand.jobs.service.JobName;
+import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskId;
+import io.leitstand.jobs.service.TaskName;
+import io.leitstand.jobs.service.TaskType;
 
 @RunWith(Parameterized.class)
 public class StringScalarAdapterTest {
 
 	@Parameters
 	public static Collection<Object[]> adapters(){
-		String uuid = UUID.randomUUID().toString();
-		Object[][] adapters = new Object[][]{
-			{new JobIdAdapter(),  	uuid,		 					new JobId(uuid)},
-			{new TaskIdAdapter(),	 			uuid,				new TaskId(uuid)},
-		};
-		return asList(adapters);
+		String uuid = randomUUID().toString();
+		return asList(new Object[][]{
+			{new JobIdAdapter(),  	     uuid,		   new JobId(uuid)},
+			{new JobNameAdapter(),       "job-name",   new JobName("job-name")},
+			{new JobTypeAdapter(),       "job-type",   new JobType("job-type")},
+			{new TaskIdAdapter(),	     uuid,		   new TaskId(uuid)},
+			{new TaskNameAdapter(),      "task-name",  new TaskName("task-name")},
+			{new TaskTypeAdapter(),      "task-type",  new TaskType("task-type")}
+		});
 	}
-	
 	
 	private JsonbAdapter<Scalar<String>,String> adapter;
 	private Scalar<String> scalar;

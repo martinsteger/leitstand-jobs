@@ -200,3 +200,5 @@ gradle-app.setting
 
 # Ignore markdown preview files
 **.md.html
+# Ignore generated JDBC files (SQL)
+*.jdbc

@@ -1,0 +1,11 @@
+<form class="confirm">
+<h2>Confirm remove job {{job_name}}</h2>
+<p>
+Removing a job <strong>cannot be undone!</strong>.
+Please confirm that the job shall be removed from the database.
+</p>
+<div class="form-actions">
+<button class="btn btn-danger" name="confirm-remove" {{Role.Operator}}>Confirm</button>
+<a href="tasks.html?job={{job_id}}" class="btn btn-outline">Dismiss</a>
+</div>
+</form>

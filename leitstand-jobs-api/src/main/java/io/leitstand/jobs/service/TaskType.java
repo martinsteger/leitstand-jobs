@@ -25,6 +25,10 @@ public class TaskType extends Scalar<String> {
 
 	private static final long serialVersionUID = 1L;
 
+	public static TaskType taskType(String type) {
+	    return valueOf(type);
+	}
+	
 	public static TaskType valueOf(String type) {
 		return Scalar.fromString(type,TaskType::new);
 	}

@@ -20,6 +20,7 @@ import java.util.Date;
 import javax.json.bind.annotation.JsonbProperty;
 
 import io.leitstand.commons.model.ValueObject;
+import io.leitstand.security.auth.UserName;
 
 public class JobSettings extends ValueObject{
 
@@ -54,6 +55,11 @@ public class JobSettings extends ValueObject{
 			job.jobState = state;
 			return this;
 		}
+		
+		public Builder withJobOwner(UserName owner) {
+		    job.jobOwner = owner;
+		    return this;
+		}
 
 		public Builder withSchedule(JobSchedule schedule){
 			job.schedule = schedule;
@@ -76,20 +82,17 @@ public class JobSettings extends ValueObject{
 
 	}
 
-	@JsonbProperty("job_id")
 	private JobId jobId;
 	
-	@JsonbProperty("job_state")
 	private TaskState jobState;
 	
-	@JsonbProperty("job_name")
 	private JobName jobName;
 	
-	@JsonbProperty("job_type")
 	private JobType jobType;
 	
-	@JsonbProperty("job_application")
 	private JobApplication jobApplication;
+		
+	private UserName jobOwner;
 	
 	private JobSchedule schedule;
 	

@@ -1,0 +1,25 @@
+plugins {
+    id 'java-library'
+    id 'eclipse-wtp'
+}
+
+dependencies {
+	compile 'io.leitstand.ui:leitstand-ui-model:'+findProperty('versions.leitstand-ui')
+	compileOnly 'javax:javaee-api:8.0'
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    archiveClassifier = 'sources'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId = 'leitstand-jobs-ui'
+            version = project.getVersion()
+            from components.java
+            artifact sourcesJar
+        }
+    }
+}

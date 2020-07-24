@@ -41,7 +41,7 @@ public class TaskSubmission extends ValueObject{
 			task.taskId = taskId;
 			return this;
 		}
-
+		
 		public Builder withTaskType(TaskType taskType){
 			task.taskType = taskType;
 			return this;

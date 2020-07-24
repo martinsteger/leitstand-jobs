@@ -15,6 +15,7 @@
  */
 package io.leitstand.jobs.rs;
 
+import static io.leitstand.commons.rs.Responses.success;
 import static io.leitstand.jobs.rs.Scopes.JOB;
 import static io.leitstand.jobs.rs.Scopes.JOB_READ;
 import static io.leitstand.jobs.rs.Scopes.JOB_TASK;
@@ -31,7 +32,9 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
+import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.rs.Resource;
 import io.leitstand.jobs.flow.TaskUpdateFlow;
 import io.leitstand.jobs.service.JobId;
@@ -53,6 +56,9 @@ public class JobTaskResource {
 	
 	@Inject
 	private TaskUpdateFlow flow;
+	
+	@Inject
+	private Messages messages;
 	
 	@PUT
 	@Path("/{job_id}/tasks/{task_id}/task_state")
@@ -82,6 +88,16 @@ public class JobTaskResource {
 							 FAILED);
 		}
 	}
+	
+   @PUT
+   @Path("/{job_id}/tasks/{task_id}/parameters")
+   public Response setTaskParameters(@Valid @PathParam("job_id") JobId jobId, 
+                                     @Valid @PathParam("task_id") TaskId taskId,
+                                     JsonObject parameters){
+        
+       service.setTaskParameter(jobId, taskId, parameters);
+       return success(messages);
+    }
 	
 	@GET
 	@Scopes({JOB,JOB_READ,JOB_TASK})

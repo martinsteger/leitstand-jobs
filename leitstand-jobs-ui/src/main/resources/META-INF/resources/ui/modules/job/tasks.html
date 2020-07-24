@@ -1,0 +1,100 @@
+<!--
+(c) RtBrick, Inc - All rights reserved, 2015 - 2017
+-->
+<ui-view-header>
+	<ui-breadcrumbs>
+		<ui-breadcrumb href="jobs.html">Jobs</ui-breadcrumb>
+		<ui-breadcrumb>Job Tasks</ui-breadcrumb>
+	</ui-breadcrumbs>
+	<ui-title>Job Tasks</ui-title>
+	<ui-subtile>Tasklist of job {{job_name}}</ui-subtile>
+</ui-view-header>
+<div class="row">
+	<div  id="progress" class="single-column" style="position:relative">
+		<h3>Job Summary</h3>
+		<ui-note>General job settings and job process in terms of percentage of completed tasks</ui-note>
+		<ui-details>
+				<!-- {{#group_name}}  -->
+				<ui-property>
+					<ui-label>Pod</ui-label>
+					<ui-value>{{.}}</ui-value>
+				</ui-property>
+				<!-- {{/group_name}} -->
+				<ui-property>
+					<ui-label>Job Application</ui-label>
+					<ui-value>{{job_application}}</ui-value>
+				</ui-property>
+				<ui-property>
+					<ui-label>Job Type</ui-label>
+					<ui-value>{{job_type}}</ui-value>
+				</ui-property>
+				<ui-property>
+					<ui-label>Job Name</ui-label>
+					<ui-value>{{job_name}}</ui-value>
+				</ui-property>
+				<!-- {{#job_owner}} -->
+				<ui-property>
+					<ui-label>Job Owner</ui-label>
+					<ui-value>{{.}}</ui-value>
+				</ui-property>
+				<!-- {{/job_owner}} -->
+				<ui-property>
+					<ui-label>Job State</ui-label>
+					<ui-value><span class="state {{job_state}}">{{job_state}}</span></ui-value>
+				</ui-property>
+				<ui-property>
+					<ui-label>Started at</ui-label>
+					<ui-value><ui-date readonly>{{schedule.date_scheduled}}</ui-date></ui-value>
+				</ui-property>
+				<!-- {{#in_progress}}  -->
+				<ui-property>
+					<ui-label>Job Progress</ui-label>
+					<ui-value>
+						<job-progress></job-progress>
+					</ui-value>
+				</ui-property>
+				<!-- {{/in_progress}}  -->
+			</ui-details>
+	</div>
+</div>
+<div class="row">
+	<div class="single-column">
+		<ui-form>
+			<h3>Job Tasks</h3>
+			<p class="note">Review the job tasks and their respective state.</p>
+			<ui-group>
+				<ui-label>Task List</ui-label>
+				<table class="list">
+					<thead>
+						<tr>
+							<th class="text">Task Type</th>
+							<th class="text">Task Name</th>
+							<!-- {{#render_element_column}} -->
+							<th class="text">Element</th>
+							<!-- {{/render_element_column}} -->
+							<th>State</th>
+							<th>Last modified</th>
+						</tr>
+					<thead>
+					<tbody>
+						<!-- {{#tasks}} -->
+						<tr>
+							<td class="text">{{task_type}}</td>
+							<td class="text"><a href="/ui/views/job/task.html?group={{group_id}}&job={{job_id}}&task={{task_id}}" title="Show task details">{{task_name}}</a></td>
+							<!-- {{#render_element_column}} -->
+							<td class="text"><a href="/ui/views/inventory/element/element.html?group={{group_id}}&element={{element_id}}" title="View element settings">{{element_role}} {{element_name}}{{#element_alias}} ({{.}}){{/element_alias}}</a>  </td>
+							<!-- {{/render_element_column}} -->
+							<td><span id="{{element_id}}" class="{{task_state}}">{{task_state}}</span></td>
+							<td><ui-date readonly>{{date_modified}}</ui-date></td>
+						</tr>
+						<!-- {{/tasks}} -->
+					</tbody>
+				</table>
+			</ui-group>
+			<ui-actions>
+				<!--  {{#actions}} -->
+				<ui-button name="{{action}}" {{style}} rolesAllowed="{{role}}">{{label}}</ui-button>
+				<!--  {{/actions}} -->
+			</ui-actions>
+		</ui-form>
+</div>
