@@ -33,6 +33,7 @@ import javax.inject.Inject;
 
 import io.leitstand.commons.model.Repository;
 import io.leitstand.commons.model.Service;
+import io.leitstand.commons.tx.SubtransactionService;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskService;
 import io.leitstand.jobs.service.TaskId;
@@ -52,6 +53,10 @@ public class JobScheduler {
 	@Inject
 	private Event<JobStateChangedEvent> jobStateEventSink;
 	
+	@Inject
+	@Jobs
+	private SubtransactionService tx;
+	
 	public List<JobId> findJobs(){
 		Date now = new Date();
 		return repository.execute(findRunnableJobs(now))
@@ -61,8 +66,8 @@ public class JobScheduler {
 	}
 	
 	public void schedule(JobId jobId){
-		Job job = repository.execute(findByJobId(jobId));
 		try{
+		    Job job = repository.execute(findByJobId(jobId));
 			job.setJobState(ACTIVE);
 			jobStateEventSink.fire(new JobStateChangedEvent(job));
 			List<TaskId> tasks = service.executeTask(job.getJobId(),
@@ -77,13 +82,21 @@ public class JobScheduler {
 			}
 			job.completed();
 		} catch (Exception e){
-			job.setJobState(FAILED);
-			jobStateEventSink.fire(new JobStateChangedEvent(job));
-			LOG.info(()->format("Cannot start job %s (%s): %s",
-							    job.getJobName(),
-								job.getJobId(),
-								e.getMessage()));
+		    // Transaction might be marked for rollback.
+		    // Start new transaction to mark job as failed.
+		    tx.run((r) -> {
+		        Job job = r.execute(findByJobId(jobId));
+	            job.setJobState(FAILED);
+	            jobStateEventSink.fire(new JobStateChangedEvent(job));	        
+	            LOG.info(()->format("Cannot start job %s (%s): %s",
+	                    job.getJobName(),
+	                    job.getJobId(),
+	                    e.getMessage()));
+		    });
+		    
 			LOG.log(FINER,e.getMessage(),e);
 		}
 	}
+	
+
 }
