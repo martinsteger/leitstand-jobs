@@ -1,15 +1,24 @@
 <!--
 (c) RtBrick, Inc - All rights reserved, 2015 - 2017
 -->
-<ui-module>
+<div class="row">
+    <ui-module-menu></ui-module-menu>
+</div>
 <div class="columns">
+    <!-- {{#multipleChoices}}-->
 	<div id="menu" class="column one-fifth" role="navigation">
-		<ui-module-menu>
-		</ui-module-menu>
+		<ui-view-menu>
+		</ui-view-menu>
 	</div>
-	<div id="page-container" class="column four-fifths" role="main">
+	<div class="column four-fifths" role="main">
 		<ui-view>
 		</ui-view>
 	</div>
+    <!-- {{/multipleChoices}}-->
+    <!-- {{^multipleChoices}}-->
+    <div class="single-column" role="main">
+        <ui-view>
+        </ui-view>
+    </div>
+    <!-- {{/multipleChoices}}-->
 </div>
-</ui-module>

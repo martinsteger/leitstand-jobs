@@ -8,7 +8,7 @@ menus:
     view: jobs.html
 - menu: job
   entity: "{{job_name}}"
-  label: Job Info
+  label: Job
   title: Manage a running job
   requires:
   - job_id
