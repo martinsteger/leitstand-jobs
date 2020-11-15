@@ -27,7 +27,7 @@ import java.io.StringReader;
 import javax.ws.rs.core.Response;
 
 import io.leitstand.commons.http.GenericRestClient;
-import io.leitstand.commons.http.JsonRequest;
+import io.leitstand.commons.http.Request;
 import io.leitstand.jobs.service.TaskState;
 
 public class InvokeRestApiTaskProcessor implements TaskProcessor {
@@ -40,16 +40,16 @@ public class InvokeRestApiTaskProcessor implements TaskProcessor {
 	
 	public TaskState execute(Job_Task task) {
 		try {
-			JsonRequest request  = adaptFromJsonJsonRequest(task);
-			Response 	response = client.invoke(request);
+			Request  request  = adaptFromJsonJsonRequest(task);
+			Response response = client.invoke(request);
 			return mapStatusToTaskState(response);
 		} catch(Exception e) {
 			return FAILED;
 		}
 	}
 
-	private JsonRequest adaptFromJsonJsonRequest(Job_Task task) throws IOException {
-		return yaml(JsonRequest.class)
+	private Request adaptFromJsonJsonRequest(Job_Task task) throws IOException {
+		return yaml(Request.class)
 			   .process(new StringReader(task.getParameters().toString()));
 	}
 
