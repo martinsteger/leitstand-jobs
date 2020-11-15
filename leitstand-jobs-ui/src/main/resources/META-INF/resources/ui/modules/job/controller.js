@@ -201,10 +201,10 @@ let tasksController = function() {
 			if(this.getViewModel()["job_state"]=='COMPLETED'){
 				return;
 			}
-			job.onLoaded = this.newEventHandler(function(settings){
-				this.init(settings);
-			});
-			job.load(this.location.params);
+			job.load(this.location.params)
+			   .then((settings) => {
+			       this.init(settings);
+			   });
 		}
 	});
 };
@@ -254,13 +254,19 @@ const taskController = function() {
 	});
 };
 
+const tasksMenu = {
+    'master':tasksController(),
+    'details':{
+        'task.html':taskController()
+    }
+        
+}
+
 
 export const menu = new Menu({"jobs.html":overviewController(),
 						 	  "job.html":jobController(),
 						 	  "confirm-remove.html":confirmRemoveController(),
-						 	  "tasks.html":tasksController(),
-						 	  "tasklist.html" : tasksController(),
-						 	  "taskflow.html" : flowController(),
-						 	  "task.html" : taskController()},
+						 	  "tasks.html":tasksMenu,
+						 	  "taskflow.html" : flowController()},
 						 	  "/ui/views/job/jobs.html");
 
