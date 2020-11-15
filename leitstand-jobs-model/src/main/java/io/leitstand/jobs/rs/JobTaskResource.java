@@ -36,7 +36,6 @@ import javax.ws.rs.core.Response;
 
 import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.rs.Resource;
-import io.leitstand.jobs.flow.TaskUpdateFlow;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskInfo;
 import io.leitstand.jobs.service.JobTaskService;
@@ -55,9 +54,6 @@ public class JobTaskResource {
 	private JobTaskService service;
 	
 	@Inject
-	private TaskUpdateFlow flow;
-	
-	@Inject
 	private Messages messages;
 	
 	@PUT
@@ -65,11 +61,10 @@ public class JobTaskResource {
 	public void updateTask(@Valid @PathParam("job_id") JobId jobId, 
 	                       @Valid @PathParam("task_id") TaskId taskId,
 	                       TaskState state){
-		flow.processTask(jobId,
-						 taskId, 
-						 state);
+	    service.updateTask(jobId, 
+	                       taskId, 
+	                       state);
 	}
-
 	
 	@PUT
 	@Path("/{job_id}/tasks/{task_id}/outcome")
@@ -79,13 +74,13 @@ public class JobTaskResource {
 		
 		int status = json.getInt("status");
 		if(200 <= status && status <= 299){
-			flow.processTask(jobId,
-							 taskId, 
-							 COMPLETED);
+			service.updateTask(jobId,
+							   taskId, 
+							  COMPLETED);
 		} else {
-			flow.processTask(jobId,
-							 taskId, 
-							 FAILED);
+			service.updateTask(jobId,
+							   taskId, 
+							   FAILED);
 		}
 	}
 	

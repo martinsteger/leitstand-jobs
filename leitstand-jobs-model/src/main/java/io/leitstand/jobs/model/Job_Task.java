@@ -35,9 +35,11 @@ import static javax.persistence.CascadeType.ALL;
 import static javax.persistence.EnumType.STRING;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.json.JsonObject;
 import javax.persistence.Column;
@@ -101,10 +103,11 @@ public class Job_Task extends AbstractEntity{
 
 	private static final long serialVersionUID = 1L;
 
-	public static Query<List<Job_Task>> findSuccessorsOfCompletedTasks(Job job){
-		return em -> em.createNamedQuery("Job_Task.findSuccessorsOfCompletedTasks", Job_Task.class)
-					   .setParameter("job",job)
-					   .getResultList();
+	public static Query<Set<Job_Task>> findSuccessorsOfCompletedTasks(Job job, LockModeType locking){
+		return em -> new HashSet<>(em.createNamedQuery("Job_Task.findSuccessorsOfCompletedTasks", Job_Task.class)
+		                             .setLockMode(locking)
+		                             .setParameter("job",job)
+		                             .getResultList());
 	}
 	
 	public static Query<List<Job_Task>> findSuccessorsOfTask(Job_Task task) {
@@ -113,13 +116,13 @@ public class Job_Task extends AbstractEntity{
 					   .getResultList();
 	}
 	
-	public static Query<Job_Task> findByTaskId(TaskId id) {
+	public static Query<Job_Task> findTaskById(TaskId id) {
 		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
 				       .setParameter("id",id)
 				       .getSingleResult();
 	}
 	
-	public static Query<Job_Task> findByTaskId(TaskId id,
+	public static Query<Job_Task> findTaskById(TaskId id,
 											   LockModeType lockMode) {
 		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
 				       .setParameter("id",id)
@@ -287,6 +290,10 @@ public class Job_Task extends AbstractEntity{
 			return true;
 		}
 		return false;
+	}
+	
+	public boolean isEligibleForExecution() {
+	    return isReady() && !isBlocked();
 	}
 	
 	public boolean isActive(){

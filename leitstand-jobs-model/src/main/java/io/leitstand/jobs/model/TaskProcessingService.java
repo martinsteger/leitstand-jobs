@@ -15,13 +15,13 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.commons.model.ObjectUtil.isDifferent;
+import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.toList;
-
-import java.util.List;
+import static io.leitstand.jobs.service.TaskState.CONFIRM;
 
 import javax.enterprise.context.Dependent;
+import javax.enterprise.event.Event;
 import javax.inject.Inject;
 
 import io.leitstand.jobs.service.TaskState;
@@ -30,47 +30,84 @@ import io.leitstand.jobs.service.TaskState;
 public class TaskProcessingService  {
 	
 	private TaskProcessorDiscoveryService processors;
+	private Event<TaskStateChangedEvent> sink;
+
 	
 	@Inject
-	public TaskProcessingService(TaskProcessorDiscoveryService processors) {
+	public TaskProcessingService(TaskProcessorDiscoveryService processors, 
+	                             Event<TaskStateChangedEvent> sink) {
 		this.processors = processors;
+		this.sink = sink;
 	}
 	
-	public List<Job_Task> execute(Job_Task task){
-		if(task.isBlocked()){
-			// Blocked tasks must not be executed by an executor.
+	public void executeTask(Job_Task task){
+		if(!task.isEligibleForExecution()){
 			// This is a safety mechanism to avert an 
-			// accidental execution of a blocked task.
-			return emptyList();
+			// accidental execution of a task not eligible for execution.
+			return;
 		}
 		
-		// Load the task processor for the specified task...
-		TaskProcessor processor = processors.findElementTaskProcessor(task);
-
-		TaskState state = COMPLETED;
-		if(processor != null) {
-			state = processor.execute(task);
+		TaskState state = task.getTaskState();
+		try {
+    		// Load the task processor for the specified task...
+    		TaskProcessor processor = processors.findElementTaskProcessor(task);
+    
+    		if(processor != null) {
+    		    task.setTaskState(ACTIVE);
+    			TaskState newState = processor.execute(task);
+    			task.setTaskState(newState);
+    		} else {
+    	        // An executable task with no processor is either
+    	        // - a fork task, that has to be completed in order to fork the task flow into multiple branches or
+    	        // - a join task, where all predecessors have been completed (otherwise the task would be blocked)
+    	        //   that has to be completed in order to process the successor.
+    	        // In summary: an executable task without processor is done as per definition.
+    		    task.setTaskState(COMPLETED);
+    		}
+    		
+            if(task.isFailed()) {
+                task.getJob().failed();
+            } else if(task.isSucceeded()) {
+                task.getJob().completed();
+            }
+		} finally {
+		    if(isDifferent(state,task.getTaskState())){
+	            sink.fire(new TaskStateChangedEvent(task));
+		    }
 		}
-		
-		// An executable task with no processor is either
-		// a fork task, that has to be completed in order to fork the task flow into multiple branches or
-		// a join task, where all predecessors have been completed (otherwise the task would be blocked)
-		// that has to be completed in order to process the successor.
-		// In summary: an executable task without processor is done as per definition.
-		task.setTaskState(state);
-		if(task.isSucceeded()) {
-			return task.getSuccessors()
-					   .stream()
-					   .map(Job_Task_Transition::getTo)
-					   .collect(toList());
-		}
-		if(task.isFailed()) {
-			task.getJob().failed();
-		}
-		
-		return emptyList();
-
+	}
 	
+	public void updateTask(Job_Task task, TaskState state) {
+       try {
+            if(task.isTerminated()) {
+                // Ignore all updates on terminated tasks.
+                return;
+            }
+            Job job = task.getJob();
+            
+            if(task.isCanary() && task.isActive() && state == COMPLETED) {
+                task.setTaskState(CONFIRM);
+                job.setJobState(CONFIRM);
+                return;
+            }
+            
+            if(state == COMPLETED && task.isSuspended()) {
+                // Change job from CONFIRM to ACTIVE state
+                // if no other tasks are in CONFIRM state
+                task.setTaskState(state);
+                job.confirmed();
+            } else {
+                task.setTaskState(state);
+            }
+
+            if(task.isFailed()) {
+                job.failed();
+            } else {
+                job.completed();
+            }
+        } finally {
+            sink.fire(new TaskStateChangedEvent(task));
+        }
 	}
 
 }

@@ -20,7 +20,7 @@ import static io.leitstand.commons.jpa.BooleanConverter.parseBoolean;
 import static io.leitstand.commons.messages.MessageFactory.createMessage;
 import static io.leitstand.commons.model.ObjectUtil.not;
 import static io.leitstand.commons.model.ObjectUtil.optional;
-import static io.leitstand.jobs.model.Job.findByJobId;
+import static io.leitstand.jobs.model.Job_Task.setTaskStateToReadyForExecution;
 import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobFlow.newJobFlow;
 import static io.leitstand.jobs.service.JobId.jobId;
@@ -29,21 +29,20 @@ import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobProgress.newJobProgress;
 import static io.leitstand.jobs.service.JobSchedule.newJobSchedule;
 import static io.leitstand.jobs.service.JobSettings.newJobSettings;
-import static io.leitstand.jobs.service.JobSubmission.newJobSubmission;
 import static io.leitstand.jobs.service.JobTask.newJobTask;
 import static io.leitstand.jobs.service.JobTasks.newJobTasks;
 import static io.leitstand.jobs.service.JobType.jobType;
-import static io.leitstand.jobs.service.ReasonCode.JOB0100E_JOB_NOT_FOUND;
 import static io.leitstand.jobs.service.ReasonCode.JOB0101I_JOB_SETTINGS_UPDATED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0102E_JOB_SETTINGS_IMMUTABLE;
 import static io.leitstand.jobs.service.ReasonCode.JOB0103I_JOB_CONFIRMED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0104I_JOB_CANCELLED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0105I_JOB_RESUMED;
+import static io.leitstand.jobs.service.ReasonCode.JOB0106E_CANNOT_CANCEL_COMPLETED_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0107I_JOB_STORED;
-import static io.leitstand.jobs.service.ReasonCode.JOB0109E_CANNOT_COMMIT_COMPLETED_JOB;
+import static io.leitstand.jobs.service.ReasonCode.JOB0108I_JOB_REMOVED;
+import static io.leitstand.jobs.service.ReasonCode.JOB0109E_CANNOT_COMMIT_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0110E_CANNOT_RESUME_COMPLETED_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0111E_JOB_NOT_REMOVABLE;
-import static io.leitstand.jobs.service.ReasonCode.JOB0108I_JOB_REMOVED;
 import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.CANCELLED;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
@@ -53,14 +52,9 @@ import static io.leitstand.jobs.service.TaskState.READY;
 import static io.leitstand.jobs.service.TaskState.REJECTED;
 import static io.leitstand.jobs.service.TaskState.TIMEOUT;
 import static io.leitstand.jobs.service.TaskState.taskState;
-import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
-import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
 import static io.leitstand.security.auth.UserName.userName;
 import static java.lang.String.format;
-import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
-import static javax.persistence.LockModeType.NONE;
-import static javax.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 import java.util.Date;
 import java.util.HashSet;
@@ -72,15 +66,12 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
-import javax.persistence.LockModeType;
 
 import io.leitstand.commons.ConflictException;
-import io.leitstand.commons.EntityNotFoundException;
 import io.leitstand.commons.db.DatabaseService;
 import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.model.Repository;
 import io.leitstand.commons.model.Service;
-import io.leitstand.inventory.service.ElementGroupId;
 import io.leitstand.inventory.service.ElementGroupSettings;
 import io.leitstand.inventory.service.ElementId;
 import io.leitstand.inventory.service.ElementSettings;
@@ -94,12 +85,8 @@ import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.JobTask;
 import io.leitstand.jobs.service.JobTasks;
-import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
-import io.leitstand.jobs.service.TaskSubmission;
-import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.security.auth.UserContext;
-import io.leitstand.security.auth.UserName;
 @Service
 public class DefaultJobService implements JobService {
 	
@@ -119,9 +106,10 @@ public class DefaultJobService implements JobService {
 		
 	}
 
-	@Inject
-	@Jobs
 	private Repository repository;
+	
+	@Inject
+	private JobProvider jobs;
 	
 	@Inject
 	private InventoryClient inventory;
@@ -144,12 +132,14 @@ public class DefaultJobService implements JobService {
 	}
 	
 	DefaultJobService(Repository repository,
+	                  JobProvider jobs,
 					  DatabaseService db,
 					  InventoryClient inventory,
 					  JobEditor jobEditor,
 					  Messages messages,
 					  UserContext user){
 		this.repository = repository;
+		this.jobs = jobs;
 		this.db = db;
 		this.inventory = inventory;
 		this.editor = jobEditor;
@@ -157,59 +147,8 @@ public class DefaultJobService implements JobService {
 		this.user = user;
 	}
 	
-	@Override
-	public JobSubmission getJobSubmission(JobId jobId) {
-		Job job = findJob(jobId,NONE);
-		List<TaskSubmission> tasks = new LinkedList<>();
-		List<TaskTransitionSubmission> transitions = new LinkedList<>();
-		for(Job_Task task : job.getTasks().values()){
-			ElementSettings element = inventory.getElementSettings(task);
-			tasks.add(newTaskSubmission()
-					  .withElementId(optional(element,ElementSettings::getElementId))
-					  .withElementName(optional(element,ElementSettings::getElementName))
-					  .withTaskId(task.getTaskId())
-					  .withTaskName(task.getTaskName())
-					  .withTaskType(task.getTaskType())
-					  .withCanary(task.isCanary())
-					  .withParameter(task.getParameters()) 
-					  .build());
-			
-			for(Job_Task_Transition transition : task.getSuccessors()){
-				transitions.add(newTaskTransitionSubmission()
-							    .from(task.getTaskId())
-								.to(transition.getTo().getTaskId())
-								.withName(transition.getName())
-								.build());
-			}
-			
-		}
-
-		
-		ElementGroupId groupId = job.getGroupId();
-		if(groupId != null) {
-			ElementGroupSettings group = inventory.getGroupSettings(groupId);
-			return newJobSubmission()
-				   .withGroupId(group.getGroupId())
-				   .withGroupName(group.getGroupName())
-				   .withJobApplication(job.getJobApplication())
-				   .withJobType(job.getJobType())
-				   .withJobName(job.getJobName())
-				   .withTasks(tasks)
-				   .withTransitions(transitions)
-				   .build();
-		}
-		return newJobSubmission()
-			   .withJobApplication(job.getJobApplication())
-			   .withJobType(job.getJobType())
-			   .withJobName(job.getJobName())
-			   .withTasks(tasks)
-			   .withTransitions(transitions)
-			   .build();
-
-	}
-
 	public JobProgress getJobProgress(JobId jobId) {
-		Job job = findJob(jobId,NONE);
+		Job job = jobs.fetchJob(jobId);
 		Set<Job_Task> elements = new HashSet<>();
 		job.getTasks();
 		TaskByStateCount stats = new TaskByStateCount();
@@ -236,7 +175,7 @@ public class DefaultJobService implements JobService {
 	
 	@Override
 	public JobFlow getJobFlow(JobId jobId) {
-		Job job = findJob(jobId,NONE);
+		Job job = jobs.fetchJob(jobId);
 		ElementGroupSettings group = inventory.getGroupSettings(job);
 		Map<ElementId,ElementSettings> elements = inventory.getElements(job);
 		JobExport export = new JobExport(elements);
@@ -259,7 +198,7 @@ public class DefaultJobService implements JobService {
 	
 	@Override
 	public void storeJob(JobId jobId, JobSubmission submission) {
-		Job job = repository.execute(findByJobId(jobId));
+		Job job = jobs.tryFetchJob(jobId);
 		if(job == null){
 			job = new Job(submission.getJobApplication(),
 						  submission.getJobType(),
@@ -283,35 +222,44 @@ public class DefaultJobService implements JobService {
 	
 	@Override
 	public void commitJob(JobId jobId) {
-		Job job = findJob(jobId,PESSIMISTIC_WRITE);
-		if(job.isCompleted()) {
-			LOG.fine(() -> format("%s: Job %s (%s) is already completed (%s) and cannot be committed again. Owner: ",
-								  JOB0109E_CANNOT_COMMIT_COMPLETED_JOB.getReasonCode(),
-								  job.getJobName(),
-								  job.getJobId(),
-								  job.getJobState(),
-								  job.getJobOwner()));
-			throw new ConflictException(JOB0109E_CANNOT_COMMIT_COMPLETED_JOB, jobId);
-		}
-		if(job.getDateScheduled() == null) {
-			job.setDateScheduled(new Date());
-		}
-		LOG.fine(() -> format("%s: Job %s (%s) stored. Owner: %s", 
-							  JOB0107I_JOB_STORED.getReasonCode(),
-							  job.getJobName(),
-							  job.getJobId(),
-							  job.getJobOwner()));
-		messages.add(createMessage(JOB0107I_JOB_STORED, 
-					   			   job.getJobName(), 
-					   			   job.getJobId()));
+		Job job = jobs.fetchJob(jobId);
+		if(job.isNew()) {
 
-		editor.prepareTaskFlowForExecution(job);
-		job.submit();
+		    // Set all tasks ready for execution
+		    repository.execute(setTaskStateToReadyForExecution(job));
+
+		    // Execute now, if no execution date is set
+    		if(job.getDateScheduled() == null) {
+    			job.setDateScheduled(new Date());
+    		}
+    		// Mark job ready for execution
+    		job.setJobState(READY);
+
+            LOG.fine(() -> format("%s: Job %s (%s) stored. Owner: %s", 
+                                  JOB0107I_JOB_STORED.getReasonCode(),
+                                  job.getJobName(),
+                                  job.getJobId(),
+                                  job.getJobOwner()));
+            messages.add(createMessage(JOB0107I_JOB_STORED, 
+                                       job.getJobName(), 
+                                       job.getJobId()));
+
+
+    		return;
+		}
+		
+        LOG.fine(() -> format("%s: Job %s (%s) is already committed (%s) and cannot be committed again. Owner: ",
+                              JOB0109E_CANNOT_COMMIT_JOB.getReasonCode(),
+                              job.getJobName(),
+                              job.getJobId(),
+                              job.getJobState(),
+                              job.getJobOwner()));
+        throw new ConflictException(JOB0109E_CANNOT_COMMIT_JOB, jobId);
 	}
 	
 	@Override
 	public JobSettings getJobSettings(JobId jobId) {
-		Job job = findJob(jobId,NONE);
+		Job job = jobs.fetchJob(jobId);
 		return newJobSettings()
 			   .withJobId(job.getJobId())
 			   .withJobName(job.getJobName())
@@ -320,10 +268,10 @@ public class DefaultJobService implements JobService {
 			   .withJobState(job.getJobState())
 			   .withJobOwner(job.getJobOwner())
 			   .withSchedule(newJobSchedule()
-					   		 .withAutoResume(job.isAutoResume())
-					   		 .withStartTime(job.getDateScheduled())
-					   		 .withEndTime(job.getDateSuspend())
-							 .build())
+					   		    .withAutoResume(job.isAutoResume())
+					   		    .withStartTime(job.getDateScheduled())
+					   		    .withEndTime(job.getDateSuspend())
+							    .build())
 			   .withDateModified(job.getDateModified())
 			   .build();
 	}
@@ -331,7 +279,7 @@ public class DefaultJobService implements JobService {
 
 	@Override
 	public JobTasks getJobTasks(JobId jobId) {
-		Job job = findJob(jobId,NONE);
+		Job job = jobs.fetchJob(jobId);
 		
 		List<JobTask> tasks = job.getOrderedTasks()
 								 .stream()
@@ -359,7 +307,7 @@ public class DefaultJobService implements JobService {
 	@Override
 	public JobInfo getJobInfo(JobId jobId) {
 		
-		Job job = findJob(jobId,NONE);
+		Job job = jobs.fetchJob(jobId);
 		
 		List<JobTask> tasks = job.getOrderedTasks()
 								 .stream()
@@ -420,21 +368,9 @@ public class DefaultJobService implements JobService {
 	}
 	
 
-
-	private Job findJob(JobId jobId, LockModeType lockMode) {
-		Job job = repository.execute(findByJobId(jobId,lockMode));
-		if(job == null){
-			LOG.fine(() -> format("%s: Job %s does not exist", 
-								  JOB0100E_JOB_NOT_FOUND.getReasonCode(),
-								  jobId));
-			throw new EntityNotFoundException(JOB0100E_JOB_NOT_FOUND,jobId);
-		}
-		return job;
-	}
-
 	@Override
-	public List<TaskId> resumeJob(JobId jobId) {
-		Job job = findJob(jobId,PESSIMISTIC_WRITE);
+	public void resumeJob(JobId jobId) {
+		Job job = jobs.fetchJob(jobId);
 		if(job.isCompleted()) {
 			LOG.fine(()-> format("%s: Cannot resume completed job %s (%s). Job State: %s, Owner: %s",
 								 JOB0110E_CANNOT_RESUME_COMPLETED_JOB.getReasonCode(),
@@ -442,27 +378,17 @@ public class DefaultJobService implements JobService {
 								 job.getJobId(),
 								 job.getJobState(),
 								 job.getJobOwner()));
-			messages.add(createMessage(JOB0110E_CANNOT_RESUME_COMPLETED_JOB,
+			
+			throw new ConflictException(JOB0110E_CANNOT_RESUME_COMPLETED_JOB,
 									   job.getJobName(),
-									   job.getJobId()));	
-			return emptyList();
+									   job.getJobId());	
 		}
 		if(job.isFailed() || job.isCancelled()) {
-			for(Job_Task task : job.getTaskList()) {
-				if(task.isResumable()) {
-					task.setTaskState(READY);
-				}
-			}
-			List<TaskId> tasks = editor.loadTasksToProceedWithFor(job)
-		 	 	  		 			   .stream()
-		 	 	  		 			   .map(Job_Task::getTaskId)
-		 	 	  		 			   .collect(toList());
-			
-			if(!tasks.isEmpty()) {
-				job.setJobState(ACTIVE);
-			}
-			return tasks;
-			
+			job.getTaskList()
+			   .stream()
+			   .filter(Job_Task::isResumable)
+			   .forEach(task -> task.setTaskState(READY));
+			job.setJobState(ACTIVE);
 		}
 
 		LOG.fine(()-> format("%s: Resumed job %s (%s). Job State: %s, Owner: %s",
@@ -475,11 +401,6 @@ public class DefaultJobService implements JobService {
 		messages.add(createMessage(JOB0105I_JOB_RESUMED, 
 								   job.getJobId(),
 								   job.getJobName()));
-		
-		return editor.loadTasksToProceedWithFor(job)
-			 	 	 .stream()
-			 	 	 .map(Job_Task::getTaskId)
-			 	 	 .collect(toList());
 		
 	}
 	
@@ -522,66 +443,66 @@ public class DefaultJobService implements JobService {
 									.withJobOwner(userName(rs.getString(6)))
 									.withDateModified(rs.getTimestamp(7))
 									.withSchedule(newJobSchedule()
-												  .withAutoResume(parseBoolean(rs.getString(8)))
-												  .withStartTime(rs.getTimestamp(9))
-												  .withEndTime(rs.getTimestamp(10))
-												  .build())
+												     .withAutoResume(parseBoolean(rs.getString(8)))
+												     .withStartTime(rs.getTimestamp(9))
+												     .withEndTime(rs.getTimestamp(10))
+												     .build())
 									.build());
 	}
 
 	@Override
 	public void updateJobState(JobId jobId, TaskState state) {
-		Job job = repository.execute(findByJobId(jobId));
+		Job job = jobs.fetchJob(jobId);
 		job.setJobState(state);	
 	}
 
 	@Override
 	public void cancelJob(JobId jobId) {
-		Job job = findJob(jobId,PESSIMISTIC_WRITE);
+		Job job = jobs.fetchJob(jobId);
 		if(job.isCompleted()) {
-			messages.add(createMessage(JOB0104I_JOB_CANCELLED, 
-					   				   job.getJobId(), 
-					   				   job.getJobName(), 
-					   				   job.getJobApplication()));
-			return;
+		    LOG.fine(() -> format("%s: Cannot cancel completed %s job (%s)",
+		                         JOB0106E_CANNOT_CANCEL_COMPLETED_JOB.getReasonCode(),
+		                         job.getJobName(),
+		                         job.getJobId()));
+		    throw new ConflictException(JOB0106E_CANNOT_CANCEL_COMPLETED_JOB,
+		                                jobId);
 		}
+		
 		messages.add(createMessage(JOB0104I_JOB_CANCELLED, 
-								   job.getJobId(), 
-								   job.getJobName(), 
-								   job.getJobApplication()));
+				   				   job.getJobId(), 
+				   				   job.getJobName(), 
+				   				   job.getJobApplication()));
 		job.setJobState(CANCELLED);
-		job.getTasks()
-		   .values()
+		job.getTaskList()
 		   .stream()
 		   .filter(not(Job_Task::isTerminated))
 		   .forEach(task -> task.setTaskState(CANCELLED));
 	}
 
 	@Override
-	public List<TaskId> confirmJob(JobId jobId) {
-		Job job = findJob(jobId,PESSIMISTIC_WRITE);
+	public void confirmJob(JobId jobId) {
+		Job job = jobs.fetchJob(jobId);
 		if(job.isSuspended()) {
-			job.setJobState(ACTIVE);
-			LOG.fine(()->format("%s: Job %s (%s) confirmed.",
+		    job.getTaskList()
+		       .stream()
+		       .filter(Job_Task::isSuspended)
+		       .forEach(task -> task.setTaskState(COMPLETED));
+		    
+		    job.confirmed();
+		    job.completed();
+		    LOG.fine(()->format("%s: Job %s (%s) confirmed.",
 								JOB0103I_JOB_CONFIRMED.getReasonCode(),
 								job.getJobName(),
 								job.getJobId()));
 			messages.add(createMessage(JOB0103I_JOB_CONFIRMED, 
 					   				   job.getJobId(), 
 					   				   job.getJobName()));
-			return job.getTasks()
-					  .values()
-					  .stream()
-					  .filter(Job_Task::isSuspended)
-					  .map(Job_Task::getTaskId)
-					  .collect(toList());
 		}
-		return emptyList();	
 	}
 
 	@Override
 	public void storeJobSettings(JobId jobId, JobSettings settings) {
-		Job job = findJob(jobId,PESSIMISTIC_WRITE);
+		Job job = jobs.fetchJob(jobId);
 		if(job.isCompleted() || job.isRunning()) {
 			LOG.fine(()->format("%s: Job %s (%s) settings must not be modified.",
 								JOB0102E_JOB_SETTINGS_IMMUTABLE.getReasonCode(),
@@ -595,6 +516,7 @@ public class DefaultJobService implements JobService {
 		job.setDateScheduled(settings.getSchedule().getDateScheduled());
 		job.setDateSuspend(settings.getSchedule().getDateSuspend());
 		job.setAutoResume(settings.getSchedule().isAutoResume());
+		job.setJobOwner(user.getUserName());
 		LOG.fine(()->format("%s: Job %s (%s) settings updated.",
 							JOB0101I_JOB_SETTINGS_UPDATED.getReasonCode(),
 							job.getJobName(),
@@ -606,7 +528,10 @@ public class DefaultJobService implements JobService {
 
 	@Override
 	public void removeJob(JobId jobId) {
-		Job job = findJob(jobId, PESSIMISTIC_WRITE);
+		Job job = jobs.tryFetchJob(jobId);
+		if(job == null) {
+		    return;
+		}
 		if(job.isTerminated()) {
 			LOG.fine(()->format("%s: Job %s (%s) removed.",
 								JOB0108I_JOB_REMOVED.getReasonCode(),
@@ -621,7 +546,8 @@ public class DefaultJobService implements JobService {
 		LOG.fine(()->format("%s: Job %s (%s) cannot be removed. State: %s.",
 							JOB0111E_JOB_NOT_REMOVABLE.getReasonCode(),
 							job.getJobName(),
-							job.getJobId()));
+							job.getJobId(),
+							job.getJobState()));
 		throw new ConflictException(JOB0111E_JOB_NOT_REMOVABLE, 
 									job.getJobId(),
 									job.getJobName());

@@ -15,7 +15,7 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.model.Job_Task.findByTaskId;
+import static io.leitstand.jobs.model.Job_Task.findTaskById;
 import static io.leitstand.jobs.model.Job_Task.markExpiredTasks;
 import static io.leitstand.jobs.service.TaskState.TIMEOUT;
 
@@ -43,7 +43,7 @@ public class TaskExpiryManager {
 	}
 
 	public void taskTimedout(TaskId taskId){
-		Job_Task task = repository.execute(findByTaskId(taskId));
+		Job_Task task = repository.execute(findTaskById(taskId));
 		task.setTaskState(TIMEOUT);
 		taskEventSink.fire(new TaskStateChangedEvent(task));
 	}

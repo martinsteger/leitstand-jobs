@@ -1,4 +1,5 @@
 /*
+
  * Copyright 2020 RtBrick Inc.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -18,7 +19,7 @@ package io.leitstand.jobs.model;
 import static io.leitstand.commons.model.StringUtil.isNonEmptyString;
 import static java.lang.String.format;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class JobExport implements JobGraphVisitor{
 	
 	private List<String> nodes = new LinkedList<>();
 	private List<String> edges = new LinkedList<>();
-	private Map<TaskId, String> nodeNames = new HashMap<>();
+	private Map<TaskId, String> nodeNames = new LinkedHashMap<>();
 	private Map<ElementId,ElementSettings> elements;
 
 	private String fontName = "Arial";
@@ -84,13 +85,19 @@ public class JobExport implements JobGraphVisitor{
 						  node.getTaskName(),
 						  node.getTaskState());
 		}
-
-		return format("%s\n%s\n%s\n%s\n%s",
-				  	  node.getTaskType(),
-				  	  element.getElementRole(),
-				  	  element.getElementName(),
-				  	  element.getElementAlias(),
-				  	  node.getTaskState());
+		if(element.getElementAlias() != null) {
+    		return format("%s\n%s\n%s\n%s\n%s",
+    				  	  node.getTaskType(),
+    				  	  element.getElementRole(),
+    				  	  element.getElementName(),
+    				  	  element.getElementAlias(),
+    				  	  node.getTaskState());
+		}
+        return format("%s\n%s\n%s\n%s",
+                      node.getTaskType(),
+                      element.getElementRole(),
+                      element.getElementName(),
+                      node.getTaskState());
 
 		
 	}
@@ -101,7 +108,7 @@ public class JobExport implements JobGraphVisitor{
 		if(element!=null && isNonEmptyString(element.getDescription())) {
 			return element.getDescription();
 		}
-		return "Task "+node.getTaskId();
+		return "Task "+node.getTaskName();
 		
 	}
 	

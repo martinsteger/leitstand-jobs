@@ -15,230 +15,336 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
+import static io.leitstand.inventory.service.ElementAlias.elementAlias;
+import static io.leitstand.inventory.service.ElementGroupId.randomGroupId;
+import static io.leitstand.inventory.service.ElementGroupName.groupName;
+import static io.leitstand.inventory.service.ElementGroupType.groupType;
+import static io.leitstand.inventory.service.ElementId.randomElementId;
+import static io.leitstand.inventory.service.ElementName.elementName;
+import static io.leitstand.inventory.service.ElementRoleName.elementRoleName;
+import static io.leitstand.inventory.service.ElementSettings.newElementSettings;
+import static io.leitstand.jobs.service.JobApplication.jobApplication;
+import static io.leitstand.jobs.service.JobId.randomJobId;
+import static io.leitstand.jobs.service.JobName.jobName;
+import static io.leitstand.jobs.service.JobType.jobType;
+import static io.leitstand.jobs.service.ReasonCode.JOB0200E_TASK_NOT_FOUND;
+import static io.leitstand.jobs.service.ReasonCode.JOB0203E_TASK_OWNED_BY_OTHER_JOB;
+import static io.leitstand.jobs.service.ReasonCode.JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB;
+import static io.leitstand.jobs.service.TaskId.randomTaskId;
+import static io.leitstand.jobs.service.TaskName.taskName;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static io.leitstand.jobs.service.TaskType.taskType;
+import static io.leitstand.security.auth.UserName.userName;
+import static io.leitstand.testing.ut.LeitstandCoreMatchers.reason;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
+import java.util.Date;
 
-import javax.enterprise.event.Event;
+import javax.json.JsonObject;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import io.leitstand.commons.ConflictException;
+import io.leitstand.commons.EntityNotFoundException;
+import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.model.Query;
 import io.leitstand.commons.model.Repository;
+import io.leitstand.inventory.service.ElementSettings;
+import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobId;
+import io.leitstand.jobs.service.JobName;
+import io.leitstand.jobs.service.JobTaskInfo;
+import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskId;
+import io.leitstand.jobs.service.TaskName;
+import io.leitstand.jobs.service.TaskType;
+import io.leitstand.security.auth.UserName;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DefaultJobTaskServiceTest {
 	
-	private static final TaskId TASK_ID = TaskId.valueOf("JUNIT");
-	private static final JobId JOB_ID = JobId.randomJobId();
+	private static final TaskId TASK_ID = randomTaskId();
+	private static final TaskName TASK_NAME = taskName("task");
+	private static final TaskType TASK_TYPE = taskType("type");
+	
+	private static final JobId JOB_ID = randomJobId();
+	private static final JobName JOB_NAME = jobName("job");
+	private static final JobType JOB_TYPE = jobType("type");
+	private static final JobApplication JOB_APP = jobApplication("app");
+	private static final UserName JOB_OWNER = userName("user");
+	
+	
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
+	
 	@Mock
 	private Repository repository;
 	
 	@Mock
-	private InventoryClient client;
+	private InventoryClient inventory;
 	
 	@Mock
-	private Event event;
+	private JobProvider jobs;
 	
 	@Mock
 	private TaskProcessingService processor;
 	
+	@Mock
+	private Messages messages;
+	
 	@InjectMocks
 	private DefaultJobTaskService service = new DefaultJobTaskService();
 	
-	
-	private Job job;
-	private Job_Task task;
-	
-	@Before
-	public void initTestDoubles() {
-		job = mock(Job.class);
-		when(job.getJobId()).thenReturn(JOB_ID);
-		task = mock(Job_Task.class);
-		
-		when(task.getTaskId()).thenReturn(TASK_ID);
-		when(task.getJob()).thenReturn(job);
-		when(job.getTask(TASK_ID)).thenReturn(task);
-	}
-	
 	@Test
-	public void set_job_to_CONFIRM_state_when_canary_task_is_completed() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isCanary()).thenReturn(TRUE);
-		when(task.isActive()).thenReturn(TRUE);
-		
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,COMPLETED);
-		assertTrue(successors.isEmpty());
-		verify(task).setTaskState(CONFIRM);
-		verify(job).setJobState(CONFIRM);
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verifyZeroInteractions(client,
-							   processor);
-		
-	}
-	
-	@Test
-	public void ask_not_for_conformation_to_execute_canary_task() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isCanary()).thenReturn(TRUE);
-		
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,ACTIVE);
-		assertTrue(successors.isEmpty());
-		verify(task).setTaskState(ACTIVE);
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verifyZeroInteractions(client,
-							   processor);
-	}
-	
-	
-	
-	@Test
-	public void ask_not_for_conformation_if_canary_task_failed() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isCanary()).thenReturn(TRUE);
-		when(task.isFailed()).thenReturn(TRUE);
-		
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,FAILED);
-		assertTrue(successors.isEmpty());
-		verify(task).setTaskState(FAILED);
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verify(job).failed();
-		verifyZeroInteractions(client,
-							   processor);
-	}
-	
-	
-	@Test
-	public void set_job_to_ACTIVE_state_when_canary_task_is_confirmed() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isCanary()).thenReturn(TRUE);
-		when(task.isSuspended()).thenReturn(TRUE);
-		Job_Task successor = mock(Job_Task.class);
-		Job_Task_Transition transition = mock(Job_Task_Transition.class);
-		when(transition.getTo()).thenReturn(successor);
-		when(task.getSuccessors()).thenReturn(asList(transition));
-		
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,COMPLETED);
-		assertFalse(successors.isEmpty());
-		verify(task).setCanary(false);
-		verify(task).setTaskState(COMPLETED);
-		verify(job).setJobState(ACTIVE);
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verifyZeroInteractions(client,
-							   processor);
-		
-	}
-	
-	@Test
-	public void attempt_to_complete_job_when_no_more_successors_exist() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,COMPLETED);
-		assertTrue(successors.isEmpty());
-		verify(task).setTaskState(COMPLETED);
-		verify(job).completed();
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verifyZeroInteractions(client,
-							   processor);
-	}
-	
-	@Test
-	public void mark_job_as_FAILED_when_task_is_failed() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isFailed()).thenReturn(TRUE);
-		
-		List<TaskId> successors = service.updateTask(JOB_ID,TASK_ID,FAILED);
-		assertTrue(successors.isEmpty());
-		verify(task).setTaskState(FAILED);
-		verify(job).failed();
-		verify(event).fire(any(TaskStateChangedEvent.class));
-		verifyZeroInteractions(client,
-							   processor);
-	}
-	
-	@Test
-	public void do_not_process_blocked_task() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
+	public void update_task_throws_EntityNotFoundException_when_task_does_not_exist() {
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(jobs.fetchJob(JOB_ID)).thenReturn(job);
 
-		List<TaskId> successors = service.executeTask(JOB_ID,TASK_ID);
-		assertTrue(successors.isEmpty());
-		verifyZeroInteractions(processor,
-							   event);	
+	    
+	    exception.expect(EntityNotFoundException.class);
+	    exception.expect(reason(JOB0200E_TASK_NOT_FOUND));
+	    
+	    service.updateTask(JOB_ID, TASK_ID, COMPLETED);
 	}
 	
 	@Test
-	public void attempt_to_complete_job_when_task_was_completed_synchronously_without_successors() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isReady()).thenReturn(TRUE);
-		when(task.isTerminated()).thenReturn(TRUE);
-		when(task.isSucceeded()).thenReturn(TRUE);
-		when(processor.execute(task)).thenReturn(emptyList());
-		List<TaskId> successors = service.executeTask(JOB_ID,TASK_ID);
-		assertTrue(successors.isEmpty());
-		verify(job).completed();
-		verifyZeroInteractions(event);	
-	}
-	
-	@Test
-	public void do_not_attempt_to_complete_job_when_task_was_completed_synchronously_with_successors() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isReady()).thenReturn(TRUE);
-		when(task.isTerminated()).thenReturn(TRUE);
-		when(task.isSucceeded()).thenReturn(TRUE);
-		Job_Task successor = mock(Job_Task.class);
-		when(processor.execute(task)).thenReturn(asList(successor));
+	public void excute_task_throws_EntityNotFoundException_when_task_does_not_exist() {
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(jobs.fetchJob(JOB_ID)).thenReturn(job);
 
-		
-		List<TaskId> successors = service.executeTask(JOB_ID,TASK_ID);
-		assertFalse(successors.isEmpty());
-		verify(job,never()).completed();
-		verifyZeroInteractions(event);	
+	    exception.expect(EntityNotFoundException.class);
+	    exception.expect(reason(JOB0200E_TASK_NOT_FOUND));
+	        
+	    service.executeTask(JOB_ID, TASK_ID);
 	}
 	
 	@Test
-	public void set_job_failed_when_task_was_completed_synchronously_and_failed() {
-		when(repository.execute(any(Query.class))).thenReturn(job)
-												  .thenReturn(task);
-		when(task.isReady()).thenReturn(TRUE);
-		when(task.isTerminated()).thenReturn(TRUE);
-		when(task.isSucceeded()).thenReturn(FALSE);
-		when(processor.execute(task)).thenReturn(emptyList());
-		
-		List<TaskId> successors = service.executeTask(JOB_ID,TASK_ID);
-		assertTrue(successors.isEmpty());
-		verify(job).failed();
-		verifyZeroInteractions(event);	
+	public void update_task() {
+	    Job job = mock(Job.class);
+	    Job_Task task = mock(Job_Task.class);
+	    when(job.getJobId()).thenReturn(JOB_ID);
+	    when(job.getTask(TASK_ID)).thenReturn(task);
+	    when(jobs.fetchJob(JOB_ID)).thenReturn(job);
+	    
+	    service.updateTask(JOB_ID, TASK_ID, COMPLETED);
+	    verify(processor).updateTask(task, COMPLETED);
 	}
 	
+    @Test
+    public void execute_task() {
+        Job job = mock(Job.class);
+        Job_Task task = mock(Job_Task.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(job.getTask(TASK_ID)).thenReturn(task);
+        when(jobs.fetchJob(JOB_ID)).thenReturn(job);
+        
+        service.executeTask(JOB_ID, TASK_ID);
+        verify(processor).executeTask(task);
+    }
 	
+    @Test
+    public void get_job_task_throws_EntityNotFoundException_for_unknown_task_id() {
+        exception.expect(EntityNotFoundException.class);
+        exception.expect(reason(JOB0200E_TASK_NOT_FOUND));
+        
+        service.getJobTask(JOB_ID, TASK_ID);
+    }
+    
+    @Test
+    public void get_job_task_throws_ConflictException_when_task_is_owned_by_other_job() {
+        exception.expect(ConflictException.class);
+        exception.expect(reason(JOB0203E_TASK_OWNED_BY_OTHER_JOB));
+        
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(randomJobId());
+        Job_Task task = mock(Job_Task.class);
+        when(task.getJob()).thenReturn(job);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        service.getJobTask(JOB_ID, TASK_ID);
+    }
+	
+    @Test
+    public void get_job_task() {
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(job.getJobName()).thenReturn(JOB_NAME);
+        when(job.getJobType()).thenReturn(JOB_TYPE);
+        when(job.getJobApplication()).thenReturn(JOB_APP);
+        Job_Task task = mock(Job_Task.class);
+        when(task.getTaskId()).thenReturn(TASK_ID);
+        when(task.getTaskName()).thenReturn(TASK_NAME);
+        when(task.getTaskType()).thenReturn(TASK_TYPE);
+        when(task.getTaskState()).thenReturn(COMPLETED);
+        when(task.getJobId()).thenReturn(JOB_ID);
+        when(task.getJob()).thenReturn(job);
+        when(task.getDateModified()).thenReturn(new Date());
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        JobTaskInfo jobTask = service.getJobTask(JOB_ID, TASK_ID);
+        
+        assertEquals(JOB_ID, jobTask.getJobId());
+        assertEquals(JOB_APP, jobTask.getJobApplication());
+        assertEquals(JOB_TYPE, jobTask.getJobType());
+        assertEquals(JOB_NAME, jobTask.getJobName());
+        assertEquals(TASK_ID, jobTask.getTaskId());
+        assertEquals(TASK_NAME, jobTask.getTaskName());
+        assertEquals(TASK_TYPE, jobTask.getTaskType());
+        assertEquals(COMPLETED, jobTask.getTaskState());
+        assertNull(jobTask.getGroupId());
+        assertNull(jobTask.getGroupType());
+        assertNull(jobTask.getGroupName());
+        assertNull(jobTask.getElementId());
+        assertNull(jobTask.getElementName());
+        assertNull(jobTask.getElementAlias());
+        assertNull(jobTask.getElementRole());
+        
+    }
+    
+    @Test
+    public void get_element_job_task() {
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(job.getJobName()).thenReturn(JOB_NAME);
+        when(job.getJobType()).thenReturn(JOB_TYPE);
+        when(job.getJobApplication()).thenReturn(JOB_APP);
+        Job_Task task = mock(Job_Task.class);
+        when(task.getTaskId()).thenReturn(TASK_ID);
+        when(task.getTaskName()).thenReturn(TASK_NAME);
+        when(task.getTaskType()).thenReturn(TASK_TYPE);
+        when(task.getTaskState()).thenReturn(COMPLETED);
+        when(task.getJobId()).thenReturn(JOB_ID);
+        when(task.getDateModified()).thenReturn(new Date());
+        when(task.getJob()).thenReturn(job);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        ElementSettings element = newElementSettings()
+                                  .withGroupId(randomGroupId())
+                                  .withGroupType(groupType("type"))
+                                  .withGroupName(groupName("group"))
+                                  .withElementId(randomElementId())
+                                  .withElementName(elementName("element"))
+                                  .withElementAlias(elementAlias("role"))
+                                  .withElementRole(elementRoleName("role"))
+                                  .build();
+        
+        when(inventory.getElementSettings(task)).thenReturn(element);
+        
+        JobTaskInfo jobTask = service.getJobTask(JOB_ID, TASK_ID);
+        
+        assertEquals(JOB_ID, jobTask.getJobId());
+        assertEquals(JOB_APP, jobTask.getJobApplication());
+        assertEquals(JOB_TYPE, jobTask.getJobType());
+        assertEquals(JOB_NAME, jobTask.getJobName());
+        assertEquals(TASK_ID, jobTask.getTaskId());
+        assertEquals(TASK_NAME, jobTask.getTaskName());
+        assertEquals(TASK_TYPE, jobTask.getTaskType());
+        assertEquals(COMPLETED, jobTask.getTaskState());
+        assertEquals(element.getGroupId(),jobTask.getGroupId());
+        assertEquals(element.getGroupType(),jobTask.getGroupType());
+        assertEquals(element.getGroupName(),jobTask.getGroupName());
+        assertEquals(element.getElementId(),jobTask.getElementId());
+        assertEquals(element.getElementName(),jobTask.getElementName());
+        assertEquals(element.getElementAlias(),jobTask.getElementAlias());
+        assertEquals(element.getElementRole(),jobTask.getElementRole());
+        
+    }
+    
+    @Test
+    public void set_task_parameter_throws_EntityNotFoundException_when_task_does_not_exist() {
+        exception.expect(EntityNotFoundException.class);
+        exception.expect(reason(JOB0200E_TASK_NOT_FOUND));
+        
+        service.setTaskParameter(JOB_ID, 
+                                 TASK_ID, 
+                                 mock(JsonObject.class));
+    }
+    
+    @Test
+    public void set_task_parameter_throws_ConflictException_when_task_is_owned_by_other_job() {
+        exception.expect(ConflictException.class);
+        exception.expect(reason(JOB0203E_TASK_OWNED_BY_OTHER_JOB));
+        
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(randomJobId());
+        Job_Task task = mock(Job_Task.class);
+        when(task.getJob()).thenReturn(job);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        service.setTaskParameter(JOB_ID, 
+                                 TASK_ID,
+                                 mock(JsonObject.class));
+    }
+    
+    @Test
+    public void cannot_modify_task_parameters_of_running_jobs() {
+        exception.expect(ConflictException.class);
+        exception.expect(reason(JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB));
+        
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(job.isRunning()).thenReturn(true);
+        Job_Task task = mock(Job_Task.class);
+        when(task.getJobId()).thenReturn(JOB_ID);
+        when(task.getJob()).thenReturn(job);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        
+        service.setTaskParameter(JOB_ID, 
+                                 TASK_ID,
+                                 mock(JsonObject.class));
+    }
+    
+    @Test
+    public void cannot_modify_task_parameters_of_completed_task() {
+        exception.expect(ConflictException.class);
+        exception.expect(reason(JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB));
+        
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        when(job.isRunning()).thenReturn(true);
+        Job_Task task = mock(Job_Task.class);
+        when(task.getJobId()).thenReturn(JOB_ID);
+        when(task.getJob()).thenReturn(job);
+        when(task.isSucceeded()).thenReturn(true);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        
+        service.setTaskParameter(JOB_ID, 
+                                 TASK_ID,
+                                 mock(JsonObject.class));
+    }
+    
+    @Test
+    public void set_task_parameters_of_failed_task() {
+        
+        Job job = mock(Job.class);
+        when(job.getJobId()).thenReturn(JOB_ID);
+        Job_Task task = mock(Job_Task.class);
+        when(task.getJobId()).thenReturn(JOB_ID);
+        when(task.getJob()).thenReturn(job);
+        when(repository.execute(any(Query.class))).thenReturn(task);
+        
+        JsonObject parameter = mock(JsonObject.class);
+        
+        service.setTaskParameter(JOB_ID, 
+                                 TASK_ID,
+                                 parameter);
+        
+        verify(task).setParameter(parameter);
+    }
+    
 }

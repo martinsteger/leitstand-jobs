@@ -15,16 +15,18 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.model.Job.findByJobId;
+import static io.leitstand.jobs.model.Job.findJobById;
 import static io.leitstand.jobs.model.Job.findRunnableJobs;
+import static io.leitstand.jobs.model.Job_Task.findSuccessorsOfCompletedTasks;
 import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.FAILED;
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
 import static java.util.logging.Level.FINER;
 import static java.util.stream.Collectors.toList;
+import static javax.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -57,35 +59,54 @@ public class JobScheduler {
 	@Jobs
 	private SubtransactionService tx;
 	
-	public List<JobId> findJobs(){
+	/**
+	 * Returns all jobs that are eligible for execution.
+	 * @return List of IDs of all executable tasks.
+	 */
+	public List<JobId> findExecutableJobs(int limit){
 		Date now = new Date();
-		return repository.execute(findRunnableJobs(now))
+		return repository.execute(findRunnableJobs(now, limit))
 						 .stream()
 						 .map(Job::getJobId)
 						 .collect(toList());
 	}
 	
+	public List<JobId> findRunningJobs(int limit){
+	    return repository.execute(Job.findRunningJobs(limit))
+	                     .stream()
+	                     .map(Job::getJobId)
+	                     .collect(toList());
+	}
+	
+	public List<TaskId> activateExecutableTasks(JobId jobId){
+	    // Make sure to have exclusive access to the job when changing tasks
+	    // from READY to ACTIVE state to avoid duplicate execution of the
+	    // same task.
+	    Job job = repository.execute(findJobById(jobId, PESSIMISTIC_WRITE));
+	    if(job.getStart().isSucceeded()) {
+    	    return repository.execute(findSuccessorsOfCompletedTasks(job, PESSIMISTIC_WRITE))
+    	                     .stream()
+    	                     .filter(Job_Task::isEligibleForExecution)
+    	                     .map(Job_Task::getTaskId)
+    	                     .collect(toList());
+	    }
+	    Job_Task start = job.getStart();
+	    start.setTaskState(ACTIVE);
+	    return asList(start.getTaskId());
+	}
+	
 	public void schedule(JobId jobId){
 		try{
-		    Job job = repository.execute(findByJobId(jobId));
+		    Job job = repository.execute(findJobById(jobId));
 			job.setJobState(ACTIVE);
 			jobStateEventSink.fire(new JobStateChangedEvent(job));
-			List<TaskId> tasks = service.executeTask(job.getJobId(),
-													 job.getStart().getTaskId());
-			while(!tasks.isEmpty()) {
-				List<TaskId> successors = new LinkedList<>();
-				for(TaskId taskId : tasks) {
-					successors.addAll(service.executeTask(job.getJobId(),
-														  taskId));
-				}
-				tasks = successors;
-			}
-			job.completed();
+			service.executeTask(job.getJobId(),
+								job.getStart().getTaskId());
 		} catch (Exception e){
 		    // Transaction might be marked for rollback.
 		    // Start new transaction to mark job as failed.
 		    tx.run((r) -> {
-		        Job job = r.execute(findByJobId(jobId));
+		        Job job = r.execute(findJobById(jobId));
 	            job.setJobState(FAILED);
 	            jobStateEventSink.fire(new JobStateChangedEvent(job));	        
 	            LOG.info(()->format("Cannot start job %s (%s): %s",

@@ -15,13 +15,11 @@
  */
 package io.leitstand.jobs.service;
 
-import java.util.List;
-
 import javax.json.JsonObject;
 
 public interface JobTaskService {
-	List<TaskId> updateTask(JobId jobId, TaskId taskId, TaskState state);
+	void updateTask(JobId jobId, TaskId taskId, TaskState state);
 	JobTaskInfo getJobTask(JobId jobId, TaskId taskId);
-	List<TaskId> executeTask(JobId jobId, TaskId taskId);
+	void executeTask(JobId jobId, TaskId taskId);
 	void setTaskParameter(JobId jobId, TaskId taskId, JsonObject parameters);
 }

@@ -17,25 +17,15 @@ package io.leitstand.jobs.model;
 
 import static io.leitstand.commons.messages.MessageFactory.createMessage;
 import static io.leitstand.commons.model.ObjectUtil.isDifferent;
-import static io.leitstand.commons.model.ObjectUtil.not;
 import static io.leitstand.commons.model.ObjectUtil.optional;
-import static io.leitstand.jobs.model.Job.findByJobId;
-import static io.leitstand.jobs.model.Job_Task.findByTaskId;
+import static io.leitstand.jobs.model.Job_Task.findTaskById;
 import static io.leitstand.jobs.service.JobTaskInfo.newJobTaskInfo;
+import static io.leitstand.jobs.service.ReasonCode.JOB0200E_TASK_NOT_FOUND;
 import static io.leitstand.jobs.service.ReasonCode.JOB0203E_TASK_OWNED_BY_OTHER_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0205E_CANNOT_MODIFY_COMPLETED_TASK;
 import static io.leitstand.jobs.service.ReasonCode.JOB0206I_TASK_PARAMETER_UPDATED;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.toList;
-import static javax.persistence.LockModeType.PESSIMISTIC_WRITE;
 
-import java.util.List;
-
-import javax.enterprise.event.Event;
 import javax.inject.Inject;
 import javax.json.JsonObject;
 
@@ -60,10 +50,10 @@ public class DefaultJobTaskService implements JobTaskService{
 	private Repository repository;
 	
 	@Inject
-	private InventoryClient inventory;
+	private JobProvider jobs;
 	
 	@Inject
-	private Event<TaskStateChangedEvent> sink;
+	private InventoryClient inventory;
 	
 	@Inject
 	private TaskProcessingService processor;
@@ -72,91 +62,44 @@ public class DefaultJobTaskService implements JobTaskService{
 	private Messages messages;
 	
 	public DefaultJobTaskService() {
-		// EJB ctor
+		// CDI 
 	}
 	
 	DefaultJobTaskService(Repository repository,
-						  TaskProcessingService processor,
-						  Event<TaskStateChangedEvent> sink){
+	                      JobProvider jobs,
+						  TaskProcessingService processor){
 		this.repository = repository;
+		this.jobs = jobs;
 		this.processor  = processor;
-		this.sink		= sink;
 	}
 	
 	@Override
-	public List<TaskId> updateTask(JobId jobId, TaskId taskId, TaskState state) {
-		// Serialize updates on a task to search for successors.
-		Job job = repository.execute(findByJobId(jobId,PESSIMISTIC_WRITE));
+	public void updateTask(JobId jobId, TaskId taskId, TaskState state) {
+		Job job = jobs.fetchJob(jobId);
 		Job_Task task = job.getTask(taskId);
-		try {
-			if(task.isTerminated()) {
-				// Ignore all updates on terminated tasks.
-				return emptyList();
-			}
-			if(task.isCanary() && task.isActive() && state == COMPLETED) {
-				task.setTaskState(CONFIRM);
-				job.setJobState(CONFIRM);
-				return emptyList();
-			}
-			
-			if(state == COMPLETED) {
-				if(task.isSuspended()) {
-					task.setCanary(false);
-					job.setJobState(ACTIVE);
-				}
-				task.setTaskState(COMPLETED);
-				List<TaskId> successors = task.getSuccessors()
-											  .stream()
-											  .map(Job_Task_Transition::getTo)
-											  .filter(not(Job_Task::isBlocked))
-											  .map(Job_Task::getTaskId)
-											  .collect(toList());
-				if(successors.isEmpty()) {
-					job.completed();
-				}
-				return successors;
-			}
-			task.setTaskState(state);
-			if(task.isFailed()) {
-				job.failed();
-			}
-			return emptyList();
-		} finally {
-			sink.fire(new TaskStateChangedEvent(task));
+		if(task == null) {
+		    throw new EntityNotFoundException(JOB0200E_TASK_NOT_FOUND,
+		                                      taskId);
 		}
+		processor.updateTask(task,state);
 	}
 
 	@Override
-	public List<TaskId> executeTask(JobId jobId, TaskId taskId) {
-		Job job = repository.execute(findByJobId(jobId,PESSIMISTIC_WRITE));
+	public void executeTask(JobId jobId, TaskId taskId) {
+        Job job = jobs.fetchJob(jobId);
 		Job_Task task = job.getTask(taskId);
-		if(task.isReady()) {
-			task.setTaskState(ACTIVE);
-			List<TaskId>  successors = processor.execute(task)
-											    .stream()
-											    .filter(not(Job_Task::isBlocked))
-											    .map(Job_Task::getTaskId)
-											    .collect(toList());
-			if(successors.isEmpty() && task.isTerminated()) {
-				// Asynchronous task completed successfully.
-				// Let job check for remaining tasks, otherwise mark job as completed.
-				if(task.isSucceeded()) {
-					job.completed();
-					return emptyList();
-				} 
-				job.failed();
-				return emptyList();
-			}
-			return successors;
-		}
-		return emptyList();
+        if(task == null) {
+            throw new EntityNotFoundException(JOB0200E_TASK_NOT_FOUND,
+                                              taskId);
+        }
+		processor.executeTask(task);
 	}
 
 	@Override
 	public JobTaskInfo getJobTask(JobId jobId, TaskId taskId) {
-		Job_Task task = repository.execute(findByTaskId(taskId));
+		Job_Task task = repository.execute(findTaskById(taskId));
 		if(task == null) {
-		    throw new EntityNotFoundException(ReasonCode.JOB0200E_TASK_NOT_FOUND, taskId);
+		    throw new EntityNotFoundException(JOB0200E_TASK_NOT_FOUND, taskId);
 		}
 		
 		Job job = task.getJob();
@@ -189,7 +132,7 @@ public class DefaultJobTaskService implements JobTaskService{
 
     @Override
     public void setTaskParameter(JobId jobId, TaskId taskId, JsonObject parameters) {
-        Job_Task task = repository.execute(findByTaskId(taskId));
+        Job_Task task = repository.execute(findTaskById(taskId));
         if(task == null) {
             throw new EntityNotFoundException(ReasonCode.JOB0200E_TASK_NOT_FOUND, taskId);
         }
@@ -202,6 +145,7 @@ public class DefaultJobTaskService implements JobTaskService{
         if(job.isRunning()) {
             throw new ConflictException(JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB,taskId,jobId);
         }
+        
         if(task.isSucceeded()) {
             throw new ConflictException(JOB0205E_CANNOT_MODIFY_COMPLETED_TASK,taskId);
         }

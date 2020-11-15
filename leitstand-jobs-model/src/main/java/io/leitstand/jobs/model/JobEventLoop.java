@@ -36,11 +36,15 @@ import javax.inject.Inject;
 import io.leitstand.commons.ShutdownListener;
 import io.leitstand.commons.StartupListener;
 import io.leitstand.jobs.service.JobId;
+import io.leitstand.jobs.service.JobTaskService;
+import io.leitstand.jobs.service.TaskId;
 
 @ApplicationScoped
 public class JobEventLoop implements Runnable, StartupListener, ShutdownListener{
 	
 	private static final Logger LOG = Logger.getLogger(JobEventLoop.class.getName());
+	
+	private static final int JOB_LIMIT = 20; // Don't process more than 20 jobs in parallel
 
 	private volatile boolean active;
 	
@@ -52,6 +56,9 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	
 	@Inject
 	private JobScheduler scheduler;
+	
+	@Inject
+	private JobTaskService executor;
 	
 	@Override
 	public void onStartup() {
@@ -87,32 +94,49 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	public void run() {
 		LOG.info("Job event loop started.");
 		
+		long waittime = 1;
 		while(active) {
-			jobs().forEach(job -> scheduler.schedule(job));
+			int jobCount = scheduleJobsEligibleForExecution();
+			int taskCount = runTasksEligibleForExecution();
+			
+		    if(jobCount == 0 && taskCount == 0) {
+		        waittime = pause(waittime);
+		    } else {
+		        waittime = 1;
+		    }
 		}
 		
-		LOG.info("Webhook event loop stopped.");
+		LOG.info("Job event loop stopped.");
 	}
 
-	private List<JobId> jobs(){
-		List<JobId> jobs = scheduler.findJobs();
-		long waittime = 1;
-		while(jobs.isEmpty()) {
-			try {
-				final long logwaittime = waittime;
-				LOG.fine(() -> format("No events to be processed. Sleep for %d seconds before polling for new events",logwaittime));
-				sleep(TimeUnit.SECONDS.toMillis(waittime));
-				jobs = scheduler.findJobs();
-				// Wait time shall never exceed a minute (if no messages are there at all).
-				waittime = min(2*waittime, 60);
-			} catch (InterruptedException e) {
-				LOG.fine(() -> "Wait for domain events has been interrupted. Reset wait interval and proceed polling!");
-				waittime = 1;
-				// Restore interrupt status.
-				currentThread().interrupt();
-			}
+    private int runTasksEligibleForExecution() {
+        int taskCount = 0;
+        for(JobId job : scheduler.findRunningJobs(JOB_LIMIT)) {
+            List<TaskId> tasks = scheduler.activateExecutableTasks(job);
+            tasks.forEach(task -> executor.executeTask(job, task));
+            taskCount+=tasks.size();
+        }
+        return taskCount;
+    }
+
+    private int scheduleJobsEligibleForExecution() {
+        List<JobId> jobs = scheduler.findExecutableJobs(JOB_LIMIT);
+        jobs.forEach(job -> scheduler.schedule(job));
+        return jobs.size();
+    }
+	
+	private long pause(long waittime){
+	    try {
+			LOG.fine(() -> format("No jobs or tasks eligible for execution. Sleep for %d seconds before polling for new tasks",waittime));
+			sleep(TimeUnit.SECONDS.toMillis(waittime));
+			// Wait time shall never exceed a minute (if no messages are there at all).
+			return min(2*waittime, 60);
+		} catch (InterruptedException e) {
+			LOG.fine(() -> "Wait for domain events has been interrupted. Reset wait interval and proceed polling!");
+			// Restore interrupt status.
+			currentThread().interrupt();
+			return 1; // Reset waittime
 		}
-		return jobs;
 	}
 
 }
