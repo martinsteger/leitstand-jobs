@@ -31,9 +31,8 @@ class Taskflow extends UIElement {
 		
 		
 		
-		this.requires({'stylesheet':'/ui/modules/inventory/topology/link-state.css',
-			   'libs':['/ui/js/ext/svg/svg-pan-zoom.min.js',
-			  	  	   '/ui/js/ext/graph/viz.js' ]})
+		this.requires({'libs':['/ui/js/ext/svg/svg-pan-zoom.min.js',
+			  	  	           '/ui/js/ext/graph/viz.js' ]})
 			.then(()=>{this.innerHTML=Viz(this.viewModel.getProperty('graph'))});
 
 	}
