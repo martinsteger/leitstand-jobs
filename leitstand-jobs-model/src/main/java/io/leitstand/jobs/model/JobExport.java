@@ -59,15 +59,15 @@ public class JobExport implements JobGraphVisitor{
 		nodeNames.put(node.getTaskId(), id);
 		if(node.getElementId() != null) {
 			nodes.add(format("%s [id=\"%s\" shape=\"%s\" fontname=\"%s\" fontsize=\"%d\" fontweight=\"bold\" fontcolor=\"%s\" label=\"%s\" style=\"filled\" color=\"%s\" tooltip=\"%s\"]",
-					id,
-					node.getTaskId(),
-					"box",
-					fontName,
-					Integer.valueOf(fontSize),
-					fontcolor(node),
-					name(node),
-					color(node),
-					tooltip(node)));
+					         id,
+					         node.getTaskId(),
+					         "box",
+					         fontName,
+					         Integer.valueOf(fontSize),
+					         fontcolor(node),
+					         name(node),
+					         color(node),
+					         tooltip(node)));
 			return;
 		} 
 		nodes.add(format("%s [id=\"%s\" shape=\"%s\" style=\"rounded,filled\" color=\"%s\" height=0.08 width=2.0 fixedsize=true label=\"\" tooltip=\"Barrier to wait for previous tasks before starting next task group\"]",
@@ -86,15 +86,17 @@ public class JobExport implements JobGraphVisitor{
 						  node.getTaskState());
 		}
 		if(element.getElementAlias() != null) {
-    		return format("%s\n%s\n%s\n%s\n%s",
+    		return format("%s\n%s\n%s\n%s\n%s\n%s",
     				  	  node.getTaskType(),
+    				  	  node.getTaskName(),
     				  	  element.getElementRole(),
     				  	  element.getElementName(),
     				  	  element.getElementAlias(),
     				  	  node.getTaskState());
 		}
-        return format("%s\n%s\n%s\n%s",
+        return format("%s\n%s\n%s\n%s\n%s",
                       node.getTaskType(),
+                      node.getTaskName(),
                       element.getElementRole(),
                       element.getElementName(),
                       node.getTaskState());
