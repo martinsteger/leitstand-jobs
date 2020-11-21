@@ -200,6 +200,20 @@ public class Job_Task extends AbstractEntity{
 		     null);
 	}
 	
+	protected Job_Task(Long id,
+	                   Job job, 
+                       TaskType taskType, 
+                       TaskId taskId, 
+                       TaskName taskName){
+   this(id,
+        job,
+        taskType,
+        taskId,
+        taskName,
+        null,
+        null);
+}
+	
 	public Job_Task(Job job, 
 					TaskType taskType, 
 					TaskId taskId, 
@@ -212,6 +226,21 @@ public class Job_Task extends AbstractEntity{
 		     elementId,
 		     null);
 	}
+	
+    protected Job_Task(Long id,
+                       Job job, 
+                       TaskType taskType, 
+                       TaskId taskId, 
+                       TaskName taskName, 
+                       ElementId elementId){
+        this(id,
+             job,
+             taskType,
+             taskId,
+             taskName,
+             elementId,
+             null);
+    }
 	
 	public Job_Task(Job job, 
 					TaskType taskType, 
@@ -243,6 +272,26 @@ public class Job_Task extends AbstractEntity{
 		this.parameter = serializable(parameter);
 		this.job = job;
 		job.addTask(this);
+	}
+	
+	public Job_Task(Long id,
+	                Job job, 
+                    TaskType taskType, 
+                    TaskId taskId, 
+                    TaskName taskName, 
+                    ElementId elementId, 
+                    JsonObject parameter){
+	   super(id);
+       this.taskId = taskId;
+       this.taskType = taskType;
+       this.taskName = taskName;
+       this.successors = new LinkedList<>();
+       this.predecessors = new LinkedList<>();
+       this.taskState = NEW;
+       this.elementId = elementId;
+       this.parameter = serializable(parameter);
+       this.job = job;
+       job.addTask(this);
 	}
 	
 	public JobId getJobId() {
@@ -397,7 +446,9 @@ public class Job_Task extends AbstractEntity{
 	}
 	
 	public List<Job_Task_Transition> getSuccessors() {
-		return unmodifiableList(successors);
+	    List<Job_Task_Transition> orderedSuccessors = new LinkedList<>(successors);
+	    orderedSuccessors.sort((a,b) -> Long.compare(a.getTo().getId(),b.getTo().getId()));
+		return unmodifiableList(orderedSuccessors);
 	}
 
 	public List<Job_Task_Transition> getPredecessors() {
@@ -452,7 +503,7 @@ public class Job_Task extends AbstractEntity{
 	}
 	
 	public boolean isForkTask() {
-		return getSuccessors().size() > 1;
+		return successors.size() > 1;
 	}
 
 	public void setParameter(Map<String, Object> params) {
@@ -482,5 +533,7 @@ public class Job_Task extends AbstractEntity{
 	public JobApplication getJobApplication() {
 		return job.getJobApplication();
 	}
+
+  
 	
 }

@@ -139,60 +139,70 @@ public class JobOrderedTaskTest {
                       JOB_OWNER);
         
         
-        start = new Job_Task(job, 
+        start = new Job_Task(1L,
+                             job, 
                              taskType("noop"),
                              randomTaskId(), 
                              taskName("start"));
 
-        upgradeLeaf1 = new Job_Task(job, 
+        upgradeLeaf1 = new Job_Task(2L,
+                                    job, 
                                     taskType("upgrade"),
                                     randomTaskId(), 
                                     taskName("Upgrade leaf1"),
                                     leaf1.getElementId());
 
-        pingLeaf1 = new Job_Task(job, 
+        pingLeaf1 = new Job_Task(3L,
+                                 job, 
                                  taskType("ping"),
                                  randomTaskId(), 
                                  taskName("Ping leaf1"),
                                  leaf1.getElementId());
 
-        upgradeLeaf2 = new Job_Task(job, 
+        upgradeLeaf2 = new Job_Task(4L,
+                                    job, 
                                     taskType("upgrade"),
                                     randomTaskId(), 
                                     taskName("Upgrade leaf2"),
                                     leaf2.getElementId());
 
-        pingLeaf2 = new Job_Task(job, 
+        pingLeaf2 = new Job_Task(5L,
+                                 job, 
                                  taskType("ping"),
                                  randomTaskId(), 
                                  taskName("Ping leaf2"),
                                  leaf2.getElementId()); 
         
-        upgradeSpine1 = new Job_Task(job, 
+        upgradeSpine1 = new Job_Task(6L,
+                                     job, 
                                      taskType("upgrade"),
                                      randomTaskId(), 
                                      taskName("Upgrade spine1"),
                                      spine1.getElementId());
 
-        pingSpine1 = new Job_Task(job, 
+        pingSpine1 = new Job_Task(7L,
+                                  job, 
                                   taskType("ping"),
                                   randomTaskId(), 
                                   taskName("Ping spine1"),
                                   spine1.getElementId());
         
-        upgradeSpine2 = new Job_Task(job, 
+        upgradeSpine2 = new Job_Task(8L,
+                                     job, 
                                      taskType("upgrade"),
                                      randomTaskId(), 
                                      taskName("Upgrade spine2"),
                                      spine2.getElementId());
 
-        pingSpine2 = new Job_Task(job, 
+        pingSpine2 = new Job_Task(9L,
+                                  job, 
                                   taskType("ping"),
                                   randomTaskId(), 
                                   taskName("Ping spine2"),
                                   spine2.getElementId());
         
-        joinLeafUpgrades = new Job_Task(job,
+        joinLeafUpgrades = new Job_Task(10L,
+                                        job,
                                         taskType("noop"),
                                         randomTaskId(),
                                         taskName("join leaf upgrades"));
@@ -263,35 +273,43 @@ public class JobOrderedTaskTest {
                 "splines=curves\n" + 
                 "T0 [id=\""+start.getTaskId()+"\" shape=\"box\" style=\"rounded,filled\" color=\"#308720\" height=0.08 width=2.0 fixedsize=true label=\"\" tooltip=\"Barrier to wait for previous tasks before starting next task group\"];\n" + 
                 "T1 [id=\""+upgradeLeaf1.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
+                "Upgrade leaf1\n"+
                 "accessleaf\n"+ 
                 "leaf1\n" + 
                 "COMPLETED\" style=\"filled\" color=\"#308720\" tooltip=\"Task Upgrade leaf1\"];\n" + 
                 "T2 [id=\""+pingLeaf1.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"black\" label=\"ping\n" + 
+                "Ping leaf1\n"+
                 "accessleaf\n"+ 
                 "leaf1\n" + 
                 "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping leaf1\"];\n" + 
                 "T3 [id=\""+joinLeafUpgrades.getTaskId()+"\" shape=\"box\" style=\"rounded,filled\" color=\"#A0A0A0\" height=0.08 width=2.0 fixedsize=true label=\"\" tooltip=\"Barrier to wait for previous tasks before starting next task group\"];\n" + 
                 "T4 [id=\""+upgradeSpine1.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
+                "Upgrade spine1\n"+
                 "spine\n"+
                 "spine1\n" + 
                 "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine1\"];\n" + 
                 "T5 [id=\""+pingSpine1.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"ping\n" + 
+                "Ping spine1\n"+
                 "spine\n" + 
                 "spine1\n"+
                 "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine1\"];\n" + 
                 "T6 [id=\""+upgradeSpine2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
+                "Upgrade spine2\n"+
                 "spine\n"+
                 "spine2\n" + 
                 "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine2\"];\n" + 
                 "T7 [id=\""+pingSpine2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"ping\n" + 
+                "Ping spine2\n"+
                 "spine\n"+
                 "spine2\n" + 
                 "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine2\"];\n" + 
                 "T8 [id=\""+upgradeLeaf2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
+                "Upgrade leaf2\n"+
                 "accessleaf\n"+
                 "leaf2\n"+ 
                 "COMPLETED\" style=\"filled\" color=\"#308720\" tooltip=\"Task Upgrade leaf2\"];\n" + 
                 "T9 [id=\""+pingLeaf2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"ping\n" + 
+                "Ping leaf2\n"+
                 "accessleaf\n"+ 
                 "leaf2\n" + 
                 "COMPLETED\" style=\"filled\" color=\"#308720\" tooltip=\"Task Ping leaf2\"];\n" + 
@@ -344,8 +362,7 @@ public class JobOrderedTaskTest {
         assertTaskEquals(pingSpine2, 
                          tasks.get(7));    
     }
-    
-    
+
     private void assertTaskEquals(Job_Task _task, JobTask task) {
         assertEquals(_task.getTaskId(),task.getTaskId());
         assertEquals(_task.getTaskName(),task.getTaskName());
