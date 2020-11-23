@@ -41,19 +41,12 @@ public class TaskProcessingService  {
 	}
 	
 	public void executeTask(Job_Task task){
-		if(!task.isEligibleForExecution()){
-			// This is a safety mechanism to avert an 
-			// accidental execution of a task not eligible for execution.
-			return;
-		}
-		
 		TaskState state = task.getTaskState();
 		try {
     		// Load the task processor for the specified task...
     		TaskProcessor processor = processors.findElementTaskProcessor(task);
     
     		if(processor != null) {
-    		    task.setTaskState(ACTIVE);
     			TaskState newState = processor.execute(task);
     			task.setTaskState(newState);
     		} else {

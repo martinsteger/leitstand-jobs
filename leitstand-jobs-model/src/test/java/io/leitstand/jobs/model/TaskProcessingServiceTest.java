@@ -74,16 +74,8 @@ public class TaskProcessingServiceTest {
 		when(processors.findElementTaskProcessor(task)).thenReturn(processor);
 	}
 	
-	
-	@Test
-	public void do_not_execute_task_not_eligible_for_execution() {
-		service.executeTask(task);
-		verify(processors,never()).findElementTaskProcessor(task);
-	}
-	
 	@Test
 	public void complete_task_and_job_when_processor_completes_task() {
-	    when(task.isEligibleForExecution()).thenReturn(true);
 	    when(processor.execute(task)).thenReturn(COMPLETED);
 	    when(task.isSucceeded()).thenReturn(true);
 	    
@@ -96,7 +88,6 @@ public class TaskProcessingServiceTest {
 	
 	@Test
     public void job_failed_when_processor_reports_error() {
-        when(task.isEligibleForExecution()).thenReturn(true);
         when(processor.execute(task)).thenReturn(FAILED);
         when(task.isFailed()).thenReturn(true);
         
@@ -108,12 +99,11 @@ public class TaskProcessingServiceTest {
 	
     @Test
     public void do_not_touch_job_state_for_asynchronous_tasks() {
-        when(task.isEligibleForExecution()).thenReturn(true);
         when(processor.execute(task)).thenReturn(ACTIVE);
         
         service.executeTask(task);
     
-        verify(task,times(2)).setTaskState(ACTIVE);
+        verify(task).setTaskState(ACTIVE);
         verify(job,never()).failed();
         verify(job,never()).completed();
     }
@@ -160,7 +150,6 @@ public class TaskProcessingServiceTest {
    public void attempt_to_complete_job_when_task_was_completed() {
        Job_Task task = mock(Job_Task.class); // Task w/o assigned processor
        when(task.getJob()).thenReturn(job);
-       when(task.isEligibleForExecution()).thenReturn(true);
        when(task.isSucceeded()).thenReturn(true);
        
        service.executeTask(task);
