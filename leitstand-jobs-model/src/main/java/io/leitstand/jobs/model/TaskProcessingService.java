@@ -16,9 +16,12 @@
 package io.leitstand.jobs.model;
 
 import static io.leitstand.commons.model.ObjectUtil.isDifferent;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskState.CONFIRM;
+import static java.lang.String.format;
+import static java.util.logging.Logger.getLogger;
+
+import java.util.logging.Logger;
 
 import javax.enterprise.context.Dependent;
 import javax.enterprise.event.Event;
@@ -29,6 +32,8 @@ import io.leitstand.jobs.service.TaskState;
 @Dependent
 public class TaskProcessingService  {
 	
+    private static final Logger LOG = getLogger(TaskProcessingService.class.getName());
+    
 	private TaskProcessorDiscoveryService processors;
 	private Event<TaskStateChangedEvent> sink;
 
@@ -47,6 +52,14 @@ public class TaskProcessingService  {
     		TaskProcessor processor = processors.findElementTaskProcessor(task);
     
     		if(processor != null) {
+                LOG.fine(() -> format("%s task processor for %s task (%s) of %s job (%s) in %s." , 
+                                      processor.getClass().getName(),
+                                      task.getTaskName(), 
+                                      task.getTaskId(), 
+                                      task.getJobName(), 
+                                      task.getJobId(), 
+                                      task.getJobApplication()));
+
     			TaskState newState = processor.execute(task);
     			task.setTaskState(newState);
     		} else {
@@ -55,6 +68,12 @@ public class TaskProcessingService  {
     	        // - a join task, where all predecessors have been completed (otherwise the task would be blocked)
     	        //   that has to be completed in order to process the successor.
     	        // In summary: an executable task without processor is done as per definition.
+                LOG.fine(() -> format("No task processor found for %s task (%s) of %s job (%s) in %s." , 
+                                      task.getTaskName(), 
+                                      task.getTaskId(), 
+                                      task.getJobName(), 
+                                      task.getJobId(), 
+                                      task.getJobApplication()));
     		    task.setTaskState(COMPLETED);
     		}
     		
