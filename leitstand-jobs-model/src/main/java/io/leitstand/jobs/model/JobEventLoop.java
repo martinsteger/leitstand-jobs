@@ -15,6 +15,7 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.jobs.model.JobEventLoopStatus.newJobEventLoopStatus;
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
@@ -46,6 +47,7 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	
 	private static final int JOB_LIMIT = 20; // Don't process more than 20 jobs in parallel
 
+	private Date dateModified;
 	private volatile boolean active;
 	
 	@Resource
@@ -70,14 +72,15 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 		stopEventLoop();
 	}
 	
-	
 	public void stopEventLoop() {
 		this.active = false;
+		this.dateModified = new Date();
 	}
 	
 	public void startEventLoop() {
 		if(!active) {
 			active = true;
+			this.dateModified = new Date();
 			try {
 				wm.execute(this);
 			} catch (Exception e) {
@@ -92,21 +95,27 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	
 	@Override
 	public void run() {
-		LOG.info("Job event loop started.");
-		
-		long waittime = 1;
-		while(active) {
-			int jobCount = scheduleJobsEligibleForExecution();
-			int taskCount = runTasksEligibleForExecution();
-			
-		    if(jobCount == 0 && taskCount == 0) {
-		        waittime = pause(waittime);
-		    } else {
-		        waittime = 1;
-		    }
-		}
-		
-		LOG.info("Job event loop stopped.");
+	    try {
+    		LOG.info("Job event loop started.");
+    		
+    		long waittime = 1;
+    		while(active) {
+    			int jobCount = scheduleJobsEligibleForExecution();
+    			int taskCount = runTasksEligibleForExecution();
+    			
+    		    if(jobCount == 0 && taskCount == 0) {
+    		        waittime = pause(waittime);
+    		    } else {
+    		        waittime = 1;
+    		    }
+    		}
+    		
+    		LOG.info("Job event loop stopped.");
+	    } catch (Exception e) {
+	        LOG.severe("Job event loop crashed: "+e.getMessage());
+	        stopEventLoop();
+	        startEventLoop();
+	    }
 	}
 
     private int runTasksEligibleForExecution() {
@@ -138,6 +147,13 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 			return 1; // Reset waittime
 		}
 	}
+
+    public JobEventLoopStatus getStatus() {
+        return newJobEventLoopStatus()
+                .withEnabled(active)
+                .withDateModified(dateModified)
+                .build();
+    }
 
 }
 

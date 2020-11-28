@@ -43,6 +43,7 @@ public class JobResources implements ApiResourceProvider {
 	public Set<Class<?>> getResources() {
 		return asSet(JobsResource.class,
 					 JobResource.class,
+					 JobEventLoopResource.class,
 					 JobTaskResource.class,
 					 ElementGroupJobResource.class,
 					 JobApplicationAdapter.class,

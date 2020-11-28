@@ -23,7 +23,9 @@ import io.leitstand.commons.Reason;
 
 public enum ReasonCode implements Reason{
 
-	JOB0100E_JOB_NOT_FOUND,
+	JOB0001I_JOB_EVENT_LOOP_STARTED,
+	JOB0002I_JOB_EVENT_LOOP_STOPPED,
+    JOB0100E_JOB_NOT_FOUND,
 	JOB0101I_JOB_SETTINGS_UPDATED,
 	JOB0102E_JOB_SETTINGS_IMMUTABLE, 
 	JOB0103I_JOB_CONFIRMED,
@@ -42,7 +44,7 @@ public enum ReasonCode implements Reason{
     JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB,
     JOB0205E_CANNOT_MODIFY_COMPLETED_TASK,
     JOB0206I_TASK_PARAMETER_UPDATED;
-
+    
 	private static final ResourceBundle MESSAGES = ResourceBundle.getBundle("JobMessages");
 	
 	/**
