@@ -17,7 +17,6 @@ package io.leitstand.jobs.rs;
 
 import static io.leitstand.jobs.rs.Scopes.JOB;
 import static io.leitstand.jobs.rs.Scopes.JOB_READ;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import javax.inject.Inject;
@@ -33,8 +32,6 @@ import javax.ws.rs.Produces;
 
 import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.rs.Resource;
-import io.leitstand.jobs.flow.JobResumeFlow;
-import io.leitstand.jobs.flow.TaskUpdateFlow;
 import io.leitstand.jobs.service.JobFlow;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobInfo;
@@ -43,7 +40,6 @@ import io.leitstand.jobs.service.JobService;
 import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.JobTasks;
-import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskState;
 import io.leitstand.security.auth.Scopes;
 
@@ -59,20 +55,6 @@ public class JobResource {
 	
 	@Inject
 	private Messages messages;
-	
-	@Inject
-	private JobResumeFlow resumeFlow;
-	
-	@Inject
-	private TaskUpdateFlow updateFlow;
-	
-	
-	@GET
-	@Path("/{job_id}/submission")
-	@Scopes({JOB,JOB_READ})
-	public JobSubmission getJobSubmission(@PathParam("job_id") JobId jobId){
-		return service.getJobSubmission(jobId);
-	}
 	
 	@GET
 	@Path("/{job_id}")
@@ -106,7 +88,7 @@ public class JobResource {
 	@POST
 	@Path("/{job_id}/_resume")
 	public void resumeJob(@PathParam("job_id") JobId jobId){
-		resumeFlow.resumeJob(jobId);
+		service.resumeJob(jobId);
 	}
 	
 	@POST
@@ -174,11 +156,7 @@ public class JobResource {
 	@POST
 	@Path("/{job_id}/_confirm")
 	public void confirmJob(@Valid @PathParam("job_id") JobId jobId){
-		for(TaskId task : service.confirmJob(jobId)) {
-			updateFlow.processTask(jobId,
-								   task,
-								   COMPLETED);
-		};
+	    service.confirmJob(jobId);
 	}
 	
 	

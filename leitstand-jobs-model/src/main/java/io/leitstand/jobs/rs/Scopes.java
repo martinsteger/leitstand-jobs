@@ -17,6 +17,8 @@ package io.leitstand.jobs.rs;
 
 public final class Scopes {
 
+    public static final String ADM = "adm";
+    public static final String ADM_JOB = "adm.job";
 	public static final String JOB = "job";
 	public static final String JOB_READ = "job.read";
 	public static final String JOB_TASK = "job.task";

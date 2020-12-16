@@ -24,11 +24,21 @@ import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobType.jobType;
+import static io.leitstand.jobs.service.TaskId.randomTaskId;
+import static io.leitstand.jobs.service.TaskState.ACTIVE;
 import static io.leitstand.jobs.service.TaskState.COMPLETED;
+import static io.leitstand.jobs.service.TaskState.CONFIRM;
+import static io.leitstand.jobs.service.TaskState.FAILED;
+import static io.leitstand.jobs.service.TaskState.READY;
+import static io.leitstand.jobs.service.TaskState.SKIPPED;
 import static io.leitstand.security.auth.UserName.userName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -83,6 +93,95 @@ public class JobTest {
 		assertEquals(COMPLETED,job.getJobState());
 	}
 	
+	@Test
+	public void submit_new_job() {
+	    Job_Task a = mock(Job_Task.class);
+	    when(a.getTaskId()).thenReturn(randomTaskId());
+	    Job_Task b = mock(Job_Task.class);
+        when(b.getTaskId()).thenReturn(randomTaskId());
+	    Job_Task c = mock(Job_Task.class);
+        when(c.getTaskId()).thenReturn(randomTaskId());
+
+	    job.addTask(a);
+	    job.addTask(b);
+	    job.addTask(c);
+	    job.submit();
+
+	    assertEquals(READY,job.getJobState());
+	    verify(a).setTaskState(READY);
+        verify(b).setTaskState(READY);
+        verify(c).setTaskState(READY);
+	    
+	}
 	
+	@Test
+    public void do_nothing_when_submitting_submitted_job() {
+        Job_Task a = mock(Job_Task.class);
+        when(a.getTaskId()).thenReturn(randomTaskId());
+        Job_Task b = mock(Job_Task.class);
+        when(b.getTaskId()).thenReturn(randomTaskId());
+        Job_Task c = mock(Job_Task.class);
+        when(c.getTaskId()).thenReturn(randomTaskId());
+        job.setJobState(READY);
+
+        job.addTask(a);
+        job.addTask(b);
+        job.addTask(c);
+        job.submit();
+
+        assertEquals(READY,job.getJobState());
+        verify(a,never()).setTaskState(READY);
+        verify(b,never()).setTaskState(READY);
+        verify(c,never()).setTaskState(READY);
+        
+    }
+
+	@Test
+	public void job_remains_in_confirm_state_when_unconfirmed_jobs_exist() {
+	    Job_Task completed = mock(Job_Task.class);
+	    Job_Task confirmed = mock(Job_Task.class);
+	    when(confirmed.isSuspended()).thenReturn(true);
+	    job.addTask(completed);
+	    job.addTask(confirmed);
+	    job.setJobState(CONFIRM);
+
+	    
+	    job.confirmed();
+	    
+	    assertEquals(CONFIRM,job.getJobState());
+	}
+	
+    @Test
+    public void job_state_changes_to_active_when_all_tasks_are_confirmed() {
+        Job_Task a = mock(Job_Task.class);
+        Job_Task b = mock(Job_Task.class);
+        job.addTask(a);
+        job.addTask(b);
+        job.setJobState(CONFIRM);
+
+        job.confirmed();
+        
+        assertEquals(ACTIVE,job.getJobState());
+    }
+    
+    @Test
+    public void mark_job_as_failed() {
+        Job_Task completed = mock(Job_Task.class);
+        Job_Task failed  = mock(Job_Task.class);
+        Job_Task ready  = mock(Job_Task.class);
+        when(ready.isReady()).thenReturn(true);
+
+        job.addTask(completed);
+        job.addTask(failed);
+        job.addTask(ready);
+        
+        job.failed();
+        
+        assertEquals(FAILED,job.getJobState());
+        verify(completed,never()).setTaskState(SKIPPED);
+        verify(failed,never()).setTaskState(SKIPPED);
+        verify(ready).setTaskState(SKIPPED);
+        
+    }
 	
 }

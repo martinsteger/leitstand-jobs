@@ -15,6 +15,8 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.commons.db.DatabaseService.prepare;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.sql.Connection;
@@ -22,6 +24,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import javax.sql.DataSource;
+
+import org.junit.After;
 
 import io.leitstand.testing.it.JpaIT;
 
@@ -49,6 +53,16 @@ public class JobsIT extends JpaIT{
 	@Override
 	protected String getPersistenceUnitName() {
 		return "jobs";
+	}
+	
+	@After
+	public void resetDatabase() {
+	    transaction(() -> {
+	        getDatabase().executeUpdate(prepare("UPDATE job.job SET start_task_id = NULL"));
+	        getDatabase().executeUpdate(prepare("DELETE job.job_task_transition"));
+	        getDatabase().executeUpdate(prepare("DELETE job.job_task"));
+	        getDatabase().executeUpdate(prepare("DELETE job.job"));
+	    });
 	}
 
 }

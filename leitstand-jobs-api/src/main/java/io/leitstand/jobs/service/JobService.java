@@ -23,7 +23,7 @@ public interface JobService {
 	
 	void commitJob(JobId jobId);
 	
-	List<TaskId> confirmJob(JobId jobId);
+	void confirmJob(JobId jobId);
 	
 	List<JobSettings> findJobs(JobQuery query);
 	
@@ -35,13 +35,11 @@ public interface JobService {
 	
 	JobSettings getJobSettings(JobId jobId);
 	
-	JobSubmission getJobSubmission(JobId jobId);
-	
 	JobTasks getJobTasks(JobId jobId);
 	
 	void removeJob(JobId jobId);
 	
-	List<TaskId> resumeJob(JobId jobId);
+	void resumeJob(JobId jobId);
 	
 	void storeJob(JobId jobId, JobSubmission submission);
 

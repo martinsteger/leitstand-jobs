@@ -35,9 +35,11 @@ import static javax.persistence.CascadeType.ALL;
 import static javax.persistence.EnumType.STRING;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.json.JsonObject;
 import javax.persistence.Column;
@@ -101,10 +103,11 @@ public class Job_Task extends AbstractEntity{
 
 	private static final long serialVersionUID = 1L;
 
-	public static Query<List<Job_Task>> findSuccessorsOfCompletedTasks(Job job){
-		return em -> em.createNamedQuery("Job_Task.findSuccessorsOfCompletedTasks", Job_Task.class)
-					   .setParameter("job",job)
-					   .getResultList();
+	public static Query<Set<Job_Task>> findSuccessorsOfCompletedTasks(Job job, LockModeType locking){
+		return em -> new HashSet<>(em.createNamedQuery("Job_Task.findSuccessorsOfCompletedTasks", Job_Task.class)
+		                             .setLockMode(locking)
+		                             .setParameter("job",job)
+		                             .getResultList());
 	}
 	
 	public static Query<List<Job_Task>> findSuccessorsOfTask(Job_Task task) {
@@ -113,13 +116,13 @@ public class Job_Task extends AbstractEntity{
 					   .getResultList();
 	}
 	
-	public static Query<Job_Task> findByTaskId(TaskId id) {
+	public static Query<Job_Task> findTaskById(TaskId id) {
 		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
 				       .setParameter("id",id)
 				       .getSingleResult();
 	}
 	
-	public static Query<Job_Task> findByTaskId(TaskId id,
+	public static Query<Job_Task> findTaskById(TaskId id,
 											   LockModeType lockMode) {
 		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
 				       .setParameter("id",id)
@@ -197,6 +200,20 @@ public class Job_Task extends AbstractEntity{
 		     null);
 	}
 	
+	protected Job_Task(Long id,
+	                   Job job, 
+                       TaskType taskType, 
+                       TaskId taskId, 
+                       TaskName taskName){
+   this(id,
+        job,
+        taskType,
+        taskId,
+        taskName,
+        null,
+        null);
+}
+	
 	public Job_Task(Job job, 
 					TaskType taskType, 
 					TaskId taskId, 
@@ -209,6 +226,21 @@ public class Job_Task extends AbstractEntity{
 		     elementId,
 		     null);
 	}
+	
+    protected Job_Task(Long id,
+                       Job job, 
+                       TaskType taskType, 
+                       TaskId taskId, 
+                       TaskName taskName, 
+                       ElementId elementId){
+        this(id,
+             job,
+             taskType,
+             taskId,
+             taskName,
+             elementId,
+             null);
+    }
 	
 	public Job_Task(Job job, 
 					TaskType taskType, 
@@ -240,6 +272,26 @@ public class Job_Task extends AbstractEntity{
 		this.parameter = serializable(parameter);
 		this.job = job;
 		job.addTask(this);
+	}
+	
+	public Job_Task(Long id,
+	                Job job, 
+                    TaskType taskType, 
+                    TaskId taskId, 
+                    TaskName taskName, 
+                    ElementId elementId, 
+                    JsonObject parameter){
+	   super(id);
+       this.taskId = taskId;
+       this.taskType = taskType;
+       this.taskName = taskName;
+       this.successors = new LinkedList<>();
+       this.predecessors = new LinkedList<>();
+       this.taskState = NEW;
+       this.elementId = elementId;
+       this.parameter = serializable(parameter);
+       this.job = job;
+       job.addTask(this);
 	}
 	
 	public JobId getJobId() {
@@ -287,6 +339,10 @@ public class Job_Task extends AbstractEntity{
 			return true;
 		}
 		return false;
+	}
+	
+	public boolean isEligibleForExecution() {
+	    return isReady() && !isBlocked();
 	}
 	
 	public boolean isActive(){
@@ -390,7 +446,9 @@ public class Job_Task extends AbstractEntity{
 	}
 	
 	public List<Job_Task_Transition> getSuccessors() {
-		return unmodifiableList(successors);
+	    List<Job_Task_Transition> orderedSuccessors = new LinkedList<>(successors);
+	    orderedSuccessors.sort((a,b) -> Long.compare(a.getTo().getId(),b.getTo().getId()));
+		return unmodifiableList(orderedSuccessors);
 	}
 
 	public List<Job_Task_Transition> getPredecessors() {
@@ -445,7 +503,7 @@ public class Job_Task extends AbstractEntity{
 	}
 	
 	public boolean isForkTask() {
-		return getSuccessors().size() > 1;
+		return successors.size() > 1;
 	}
 
 	public void setParameter(Map<String, Object> params) {
@@ -475,5 +533,7 @@ public class Job_Task extends AbstractEntity{
 	public JobApplication getJobApplication() {
 		return job.getJobApplication();
 	}
+
+  
 	
 }

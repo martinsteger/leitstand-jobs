@@ -31,6 +31,10 @@ public class TaskId extends Scalar<String> {
 		return new TaskId(UUID.randomUUID().toString());
 	}
 	
+	public static final TaskId taskId(String id) {
+	    return valueOf(id);
+	}
+	
 	/**
 	 * Creates a <code>TaskId</code> from the specified string.
 	 * @param id the task ID

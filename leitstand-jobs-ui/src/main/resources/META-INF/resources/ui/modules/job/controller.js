@@ -31,35 +31,30 @@ class Taskflow extends UIElement {
 		
 		
 		
-		this.requires({'stylesheet':'/ui/modules/inventory/topology/link-state.css',
-			   'libs':['/ui/js/ext/svg/svg-pan-zoom.min.js',
-			  	  	   '/ui/js/ext/graph/viz.js' ]})
+		this.requires({'libs':['/ui/js/ext/svg/svg-pan-zoom.min.js',
+			  	  	           '/ui/js/ext/graph/viz.js' ]})
 			.then(()=>{this.innerHTML=Viz(this.viewModel.getProperty('graph'))});
 
 	}
 }
 customElements.define('job-taskflow',Taskflow);
 
-class TaskEditor extends Control {
-	connectedCallback(){
-		const config = this.viewModel.getProperty(this.binding);
-		const editorpanel = document.createElement('div');
-		if(this.hasAttribute('style')){
-			editorpanel.setAttribute('style',this.getAttribute('style'));
-		}
-		const options = {'mode':'code'};
-	    const editor = new JSONEditor(editorpanel, options);
-	    if(config){
-	    	editor.set(config);
-	    }
-		this.appendChild(editorpanel);
-		this.form.addEventListener('UIPreExecuteAction',(evt) => {
-			this.viewModel.setProperty(this.binding,editor.get());
-		});
-	}
-	
+class Editor extends Control {
+    connectedCallback(){
+        const config = this.viewModel.getProperty(this.binding)||{};
+        this.innerHTML=`<textarea>${JSON.stringify(config,null,' ')}</textarea>`;
+        const editor = CodeMirror.fromTextArea(this.querySelector("textarea"), {
+            lineNumbers: true,
+            styleActiveLine: true,
+            matchBrackets: true,
+            mode:{name:'javascript', json:true}
+        });
+        this.form.addEventListener('UIPreExecuteAction',() => {
+            this.viewModel.setProperty(this.binding,JSON.parse(editor.getValue()));
+        });
+    }
 }
-customElements.define('task-editor',TaskEditor);
+customElements.define('task-editor',Editor);
 
 
 let overviewController = function(){
@@ -201,10 +196,10 @@ let tasksController = function() {
 			if(this.getViewModel()["job_state"]=='COMPLETED'){
 				return;
 			}
-			job.onLoaded = this.newEventHandler(function(settings){
-				this.init(settings);
-			});
-			job.load(this.location.params);
+			job.load(this.location.params)
+			   .then((settings) => {
+			       this.init(settings);
+			   });
 		}
 	});
 };
@@ -254,13 +249,19 @@ const taskController = function() {
 	});
 };
 
+const tasksMenu = {
+    'master':tasksController(),
+    'details':{
+        'task.html':taskController()
+    }
+        
+}
+
 
 export const menu = new Menu({"jobs.html":overviewController(),
 						 	  "job.html":jobController(),
 						 	  "confirm-remove.html":confirmRemoveController(),
-						 	  "tasks.html":tasksController(),
-						 	  "tasklist.html" : tasksController(),
-						 	  "taskflow.html" : flowController(),
-						 	  "task.html" : taskController()},
+						 	  "tasks.html":tasksMenu,
+						 	  "taskflow.html" : flowController()},
 						 	  "/ui/views/job/jobs.html");
 

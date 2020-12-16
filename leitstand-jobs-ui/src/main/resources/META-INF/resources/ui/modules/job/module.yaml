@@ -17,28 +17,13 @@ menus:
   items:
   - item: settings
     label: Settings
-    title: Show the job's setting such as job name and schedule
+    title: Show the job settings such as job name and job schedule
     view: job.html
   - item: tasks
     label: Tasks
-    title: Show the job's task list
+    title: Show the job task list
     view: tasks.html
   - item: flow
     label: Flow
-    title: Show the job's task flow
+    title: Show the job task flow
     view: taskflow.html
-- menu: task
-  entity: "{{task_name}}"
-  label: Task Info
-  title: Review a task
-  requires:
-  - job_id
-  - task_id
-  query:
-    job: "{{job_id}}"
-    task: "{{task_id}}"
-  items:
-  - item: settings
-    label: Details
-    title: Show the task details
-    view: task.html

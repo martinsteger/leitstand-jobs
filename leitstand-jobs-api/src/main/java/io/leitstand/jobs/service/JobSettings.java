@@ -123,6 +123,10 @@ public class JobSettings extends ValueObject{
 		return schedule;
 	}
 
+	public UserName getJobOwner() {
+        return jobOwner;
+    }
+	
 	public Date getDateModified() {
 		if(dateModified == null) {
 			return null;

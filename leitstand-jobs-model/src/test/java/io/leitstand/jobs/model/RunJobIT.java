@@ -15,6 +15,8 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.jobs.model.Job_Task.findSuccessorsOfTask;
+import static io.leitstand.jobs.model.Job_Task.findTaskById;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobSubmission.newJobSubmission;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
@@ -23,6 +25,7 @@ import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
 import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
 import static io.leitstand.security.auth.UserName.userName;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -47,6 +50,7 @@ import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskName;
+import io.leitstand.jobs.service.TaskState;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.jobs.service.TaskType;
@@ -98,18 +102,20 @@ public class RunJobIT extends JobsIT{
 	private TaskSubmission branchA1; 
 	private TaskSubmission branchB0; 
 	private TaskSubmission join;		
-	private TaskSubmission end; 		
+	private TaskSubmission end; 
+	private Repository repository;
 	
 	@Before
 	public void create_job() {
 		// Create repository to test DB interaction
-		Repository repository = new Repository(getEntityManager());
+		repository = new Repository(getEntityManager());
 
 		UserContext userContext = mock(UserContext.class);
 		when(userContext.getUserName()).thenReturn(userName("dummy"));
 		
 		// Create job service and IT job definition.
 		jobs = new DefaultJobService(repository, 
+		                             new JobProvider(repository),
 									 mock(DatabaseService.class),
 									 mock(InventoryClient.class),
 									 new JobEditor(repository),
@@ -143,62 +149,81 @@ public class RunJobIT extends JobsIT{
 									 		 transition(join,end))
 							.build();
 		
-		beginTransaction();
+		transaction(() -> {
 		// Store job
 		jobs.storeJob(jobId, 
 					  job);
 		// Set job eligible for deployment
 		jobs.commitJob(jobId);
-		commitTransaction();
+		});
 		event = mock(Event.class);
 		processor = mock(TaskProcessor.class);
 		TaskProcessorDiscoveryService discovery = mock(TaskProcessorDiscoveryService.class);
 		when(discovery.findElementTaskProcessor(any(Job_Task.class))).thenReturn(processor);
 		tasks = new DefaultJobTaskService(repository,
-										  new TaskProcessingService(discovery),
-										  event);
+                                          new JobProvider(repository),
+										  new TaskProcessingService(discovery,event));
 		
 	}
 	
+	List<TaskId> executeTask(JobId jobId, TaskId taskId){
+	    tasks.executeTask(jobId,taskId);
+	    return findSuccessorsEligbleForExecution(taskId);
+	}
+
+	List<TaskId> updateTask(JobId jobId, TaskId taskId, TaskState state){
+	    tasks.updateTask(jobId, taskId, state);
+	    return findSuccessorsEligbleForExecution(taskId);
+	}
+
+	
+    private List<TaskId> findSuccessorsEligbleForExecution(TaskId taskId) {
+        Job_Task task = repository.execute(findTaskById(taskId));
+	    
+	    return repository.execute(findSuccessorsOfTask(task))
+	                     .stream()
+	                     .filter(Job_Task::isEligibleForExecution)
+	                     .map(Job_Task::getTaskId)
+	                     .collect(toList());
+    }
 	
 	@Test
 	public void run_job_synchronously() {
 		when(processor.execute(any(Job_Task.class))).thenReturn(COMPLETED);
-		beginTransaction();
-		List<TaskId> successors = tasks.executeTask(jobId,start.getTaskId());
-		assertSuccessors(successors, split);
-		commitTransaction();
+		transaction(()->{
+		    List<TaskId> successors = executeTask(jobId,start.getTaskId());
+		    assertSuccessors(successors, split);
+		});
 
-		beginTransaction();
-		successors = tasks.executeTask(jobId,split.getTaskId());
-		assertSuccessors(successors, branchA0,branchB0);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,split.getTaskId());
+		    assertSuccessors(successors, branchA0,branchB0);
+		});
+		
+		transaction(() -> {
+		    List<TaskId >successors = executeTask(jobId,branchA0.getTaskId());
+		    assertSuccessors(successors, branchA1);
+		});
 
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchA0.getTaskId());
-		assertSuccessors(successors, branchA1);
-		commitTransaction();
-
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchA1.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,branchA1.getTaskId());
+		    assertTrue(successors.isEmpty());
+	    });
 		
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchB0.getTaskId());
-		assertSuccessors(successors, join);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,branchB0.getTaskId());
+		    assertSuccessors(successors, join);
+		});
 		
-		beginTransaction();
-		successors = tasks.executeTask(jobId,join.getTaskId());
-		assertSuccessors(successors, end);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId >successors = executeTask(jobId,join.getTaskId());
+		    assertSuccessors(successors, end);
+		});
 		
-		beginTransaction();
-		successors = tasks.executeTask(jobId,end.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
-		
+		transaction(() -> {
+		    List<TaskId >successors = executeTask(jobId,end.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 	}
 	
 	@Test
@@ -206,88 +231,90 @@ public class RunJobIT extends JobsIT{
 		when(processor.execute(any(Job_Task.class))).thenReturn(ACTIVE);
 		
 		// Execute start task asynchronously
-		beginTransaction();
-		List<TaskId> successors = tasks.executeTask(jobId,start.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,start.getTaskId());
+		    assertTrue(successors.isEmpty());
+		    
+		});
 		
 		// Complete start task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,start.getTaskId(), COMPLETED);
-		assertSuccessors(successors, split);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = updateTask(jobId,start.getTaskId(), COMPLETED);
+		    assertSuccessors(successors, split);
+		    
+		});
 
 		// Execute split task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,split.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,split.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete split task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,split.getTaskId(), COMPLETED);
-		assertSuccessors(successors, branchA0,branchB0);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = updateTask(jobId,split.getTaskId(), COMPLETED);
+		    assertSuccessors(successors, branchA0,branchB0);
+		});
 		
 		// Execute branchA0 task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchA0.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,branchA0.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete branchA0 task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,branchA0.getTaskId(), COMPLETED);
-		assertSuccessors(successors, branchA1);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId>successors = updateTask(jobId,branchA0.getTaskId(), COMPLETED);
+		    assertSuccessors(successors, branchA1);
+		});
 
 		// Execute branchA1 task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchA1.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,branchA1.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete branchA1 task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,branchA1.getTaskId(), COMPLETED);
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = updateTask(jobId,branchA1.getTaskId(), COMPLETED);
+		    assertTrue(successors.isEmpty());
+		});
 
 		// Execute branchB0 task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,branchB0.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,branchB0.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete branchB0 task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,branchB0.getTaskId(), COMPLETED);
-		assertSuccessors(successors, join);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = updateTask(jobId,branchB0.getTaskId(), COMPLETED);
+		    assertSuccessors(successors, join);
+		});
 		
 		// Execute join task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,join.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,join.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete branchA0 task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,join.getTaskId(), COMPLETED);
-		assertSuccessors(successors, end);
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = updateTask(jobId,join.getTaskId(), COMPLETED);
+		    assertSuccessors(successors, end);
+		});
 		
 		// Execute end task asynchronously
-		beginTransaction();
-		successors = tasks.executeTask(jobId,end.getTaskId());
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId> successors = executeTask(jobId,end.getTaskId());
+		    assertTrue(successors.isEmpty());
+		});
 		
 		// Complete end task
-		beginTransaction();
-		successors = tasks.updateTask(jobId,end.getTaskId(), COMPLETED);
-		assertTrue(successors.isEmpty());
-		commitTransaction();
+		transaction(() -> {
+		    List<TaskId >successors = updateTask(jobId,end.getTaskId(), COMPLETED);
+		    assertTrue(successors.isEmpty());
+		});
 		
 	}
 	

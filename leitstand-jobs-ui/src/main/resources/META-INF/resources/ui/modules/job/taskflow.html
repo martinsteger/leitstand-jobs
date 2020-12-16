@@ -7,6 +7,11 @@
 	<ui-title>Taskflow</ui-title>
 	<ui-subtitle>Inspect taskflow and progress of job {{job_name}}</ui-subtitle>
 </ui-view-header>
+<ui-form>
 <job-taskflow>
 	<!-- Taskflow displays all tasks including their state and order of execution -->
 </job-taskflow>
+<ui-actions>
+    <ui-refresh title="Refresh task list">Refresh</ui-refresh>
+</ui-actions>
+</ui-form>

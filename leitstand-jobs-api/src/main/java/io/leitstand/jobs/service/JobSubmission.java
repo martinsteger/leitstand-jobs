@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.json.bind.annotation.JsonbProperty;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
@@ -38,6 +37,7 @@ public class JobSubmission extends ValueObject {
 	public static Builder newJobSubmission(){
 		return new Builder();
 	}
+
 
 	public static class Builder{
 		
@@ -116,6 +116,12 @@ public class JobSubmission extends ValueObject {
 			return this;
 		}
 		
+		public Builder withSchedule(JobSchedule schedule) {
+		    assertNotInvalidated(getClass(), object);
+		    object.schedule = schedule;
+		    return this;
+		}
+		
 		public JobSubmission build(){
 			try{
 				assertNotInvalidated(getClass(), object);
@@ -124,25 +130,26 @@ public class JobSubmission extends ValueObject {
 				this.object = null;
 			}
 		}
+
+        public Builder withSchedule(JobSchedule.Builder schedule) {
+            return withSchedule(schedule.build());
+        }
 		
 	}
 	
-	@JsonbProperty("group_id")
 	private ElementGroupId groupId;
-	
-	@JsonbProperty("group_name")
 	private ElementGroupName groupName;
 	
-	@JsonbProperty("job_name")
 	@Valid
 	@NotNull(message="{job_name.required}")
 	private JobName jobName;
 	
-	@JsonbProperty("job_application")
 	private JobApplication jobApplication;
 	
-	@JsonbProperty("job_type")
 	private JobType jobType;
+	
+    private JobSchedule schedule;
+
 	
 	private List<TaskSubmission> tasks;
 	private List<TaskTransitionSubmission> transitions;
@@ -179,4 +186,8 @@ public class JobSubmission extends ValueObject {
 	public TaskId getStartTaskId() {
 		return startTaskId;
 	}
+	
+	public JobSchedule getSchedule() {
+        return schedule;
+    }
 }

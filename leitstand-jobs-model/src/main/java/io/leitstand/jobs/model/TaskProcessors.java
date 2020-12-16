@@ -15,16 +15,23 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.commons.model.ObjectUtil.optional;
+import static java.lang.String.format;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
+import io.leitstand.commons.model.ObjectUtil;
 import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskType;
 
 public class TaskProcessors {
 
+    private static final Logger LOG = Logger.getLogger(TaskProcessors.class.getName());
+    
 	public static TaskProcessors application(JobApplication application) {
 		return new TaskProcessors(application);
 	}
@@ -49,17 +56,26 @@ public class TaskProcessors {
 	}
 
 	public TaskProcessors taskProcessor(TaskType taskType, Supplier<TaskProcessor> taskProcessor) {
-		taskProcessors.put(taskType,taskProcessor.get());
-		return this;
+	    return taskProcessor(taskType,
+	                         taskProcessor.get());
 	}
 	
 	public TaskProcessors taskProcessor(TaskType taskType, TaskProcessor taskProcessor) {
 		taskProcessors.put(taskType,taskProcessor);
+		LOG.fine(() -> format("Register %s task processor for %s task type in %s jobs in %s applications",
+		                      taskProcessor.getClass().getName(),
+		                      taskType,
+		                      optional(jobType, JobType::getValue, "*"),
+		                      jobApplication));
 		return this;
 	}
 
-	public TaskProcessors defaultProcessor(TaskProcessor processor) {
-		this.defaultTaskProcessor = processor;
+	public TaskProcessors defaultProcessor(TaskProcessor taskProcessor) {
+		this.defaultTaskProcessor = taskProcessor;
+        LOG.fine(() -> format("Register %s task processor as default task processor for %s jobs in %s applications",
+                              taskProcessor.getClass().getName(),
+                              ObjectUtil.optional(jobType, JobType::getValue, "*"),
+                              jobApplication));
 		return this;
 	}
 	

@@ -27,7 +27,7 @@ import java.io.StringReader;
 import javax.ws.rs.core.Response;
 
 import io.leitstand.commons.http.GenericRestClient;
-import io.leitstand.commons.http.JsonRequest;
+import io.leitstand.commons.http.Request;
 import io.leitstand.inventory.service.ElementSettings;
 import io.leitstand.jobs.service.TaskState;
 
@@ -42,7 +42,7 @@ public class InvokeElementRestApiTaskProcessor implements TaskProcessor {
 	public TaskState execute(Job_Task task) {
 		try {
 			ElementSettings settings = inventory.getElementSettings(task.getElementId());
-			JsonRequest 	request  = adaptFromJsonJsonRequest(task);
+			Request 	    request  = adaptFromJsonJsonRequest(task);
 			
 			GenericRestClient client = new GenericRestClient(settings.getManagementInterfaceUri("REST"));
 			
@@ -53,8 +53,8 @@ public class InvokeElementRestApiTaskProcessor implements TaskProcessor {
 		}
 	}
 
-	private JsonRequest adaptFromJsonJsonRequest(Job_Task task) throws IOException {
-		return yaml(JsonRequest.class).process(new StringReader(task.getParameters().toString()));
+	private Request adaptFromJsonJsonRequest(Job_Task task) throws IOException {
+		return yaml(Request.class).process(new StringReader(task.getParameters().toString()));
 	}
 
 	protected TaskState mapStatusCodeToTaskState(Response response) {

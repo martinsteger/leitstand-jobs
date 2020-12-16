@@ -32,7 +32,7 @@ import static javax.persistence.TemporalType.TIMESTAMP;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +45,6 @@ import javax.persistence.Enumerated;
 import javax.persistence.JoinColumn;
 import javax.persistence.LockModeType;
 import javax.persistence.MapKey;
-import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -71,26 +70,27 @@ import io.leitstand.security.auth.jpa.UserNameConverter;
 
 @Entity
 @Table(schema="job", name="job")
-@NamedQueries({
 @NamedQuery(name="Job.loadAllTransitionsAndTasks",
-			query="SELECT j FROM Job_Task_Transition j WHERE j.to.job=:job"),
+			query="SELECT j FROM Job_Task_Transition j WHERE j.to.job=:job")
 @NamedQuery(name="Job.findByJobId",
-			query="SELECT j FROM Job j WHERE j.uuid=:id"),
+			query="SELECT j FROM Job j WHERE j.uuid=:id")
 @NamedQuery(name="Job.findByTaskId",
-			query="SELECT j FROM Job j INNER JOIN j.tasks t WHERE t.taskId=:id "),
+			query="SELECT j FROM Job j INNER JOIN j.tasks t WHERE t.taskId=:id ")
 
 @NamedQuery(name="Job.findReadyAndActiveByElementGroup",
 			query="SELECT j FROM Job j "+
 				  "WHERE j.groupId=:groupId "+
 				  "AND (j.state=io.leitstand.jobs.service.TaskState.READY "+
-				       "OR j.state=io.leitstand.jobs.service.TaskState.ACTIVE)" ),
+				       "OR j.state=io.leitstand.jobs.service.TaskState.ACTIVE)" )
 @NamedQuery(name="Job.findJobs",
-			query="SELECT j FROM Job j ORDER BY j.tsschedule DESC"),
+			query="SELECT j FROM Job j ORDER BY j.tsschedule DESC")
 @NamedQuery(name="Job.findRunnableJobs",
 			query="SELECT j FROM Job j "+
 				  "WHERE j.state=io.leitstand.jobs.service.TaskState.READY "+
 				  "AND j.tsschedule < :scheduled" )
-})
+@NamedQuery(name="Job.findRunningJobs",
+            query="SELECT j FROM Job j "+
+                  "WHERE j.state=io.leitstand.jobs.service.TaskState.ACTIVE")
 public class Job extends VersionableEntity {
 	
 	private static final long serialVersionUID = 1L;
@@ -101,10 +101,16 @@ public class Job extends VersionableEntity {
 					   .getResultList();
 	}
 	
-	public static Query<List<Job>> findRunnableJobs(Date scheduled){
+	public static Query<List<Job>> findRunningJobs(int limit){
+	    return em -> em.createNamedQuery("Job.findRunningJobs",Job.class)
+	                   .setMaxResults(limit)
+	                   .getResultList();
+	}
+	
+	public static Query<List<Job>> findRunnableJobs(Date scheduled, int limit){
 		return em -> em.createNamedQuery("Job.findRunnableJobs", Job.class)
 					   .setParameter("scheduled", scheduled, TIMESTAMP)
-					   .setMaxResults(50)
+					   .setMaxResults(limit)
 					   .getResultList();
 	}
 	
@@ -114,13 +120,13 @@ public class Job extends VersionableEntity {
 					   .getResultList();
 	}
 	
-	public static Query<Job> findByJobId(JobId id) {
+	public static Query<Job> findJobById(JobId id) {
 		return em -> em.createNamedQuery("Job.findByJobId",Job.class)
 					   .setParameter("id", id.toString())
 					   .getSingleResult();
 	}
 	
-	public static Query<Job> findByJobId(JobId id, LockModeType lockMode) {
+	public static Query<Job> findJobById(JobId id, LockModeType lockMode) {
 		return em -> em.createNamedQuery("Job.findByJobId",Job.class)
 					   .setParameter("id", id.toString())
 					   .setLockMode(lockMode)
@@ -198,7 +204,7 @@ public class Job extends VersionableEntity {
 		this.owner = owner;
 		this.type = type;
 		this.name = name;
-		this.tasks = new HashMap<>();
+		this.tasks = new LinkedHashMap<>();
 		this.state = NEW;
 	}
 	
@@ -246,27 +252,27 @@ public class Job extends VersionableEntity {
 		return autoResume;
 	}
 	
-	public boolean isSubmitted() {
+	public boolean isReady() {
 		return state == READY;
 	}
-	
-	public void submit(){
-		if(start == null){
-			throw new IllegalStateException("Cannot submit job without start node being specified!");
-		}
-		tasks.values().forEach(task -> task.setTaskState(READY));
-		if(NEW == state){
-			state = READY;
-		}
-		// In any other case the task job was already submitted an no further action is required
+
+	public boolean isNew() {
+	    return state == NEW;
 	}
 	
 	public JobId getJobId() {
 		return new JobId(getUuid());
 	}
+	
+	public void submit() {
+	    if(isNew()) {
+	        this.state = READY;
+	        getTaskList().forEach(t -> t.setTaskState(READY));
+	    }
+	}
 
 	public Map<TaskId,Job_Task> getTasks() {
-		return unmodifiableMap(new HashMap<>(tasks));
+		return unmodifiableMap(new LinkedHashMap<>(tasks));
 	}
 
 	public void removeTask(Job_Task task) {
@@ -297,7 +303,7 @@ public class Job extends VersionableEntity {
 		return state;
 	}
 
-	public void setJobState(TaskState state) {
+	void setJobState(TaskState state) {
 		this.state = state;
 	}
 
@@ -380,8 +386,8 @@ public class Job extends VersionableEntity {
 		}
 	    
 		for(Job_Task_Transition transition : task.getSuccessors()) {
-			tasks.add(transition.getTo());
-			traverse(tasks, transition.getTo());
+		    tasks.add(transition.getTo());
+		    traverse(tasks, transition.getTo());
 		}
 	}
 
@@ -392,5 +398,14 @@ public class Job extends VersionableEntity {
 	public List<Job_Task> getTaskList() {
 		return new ArrayList<>(getTasks().values());
 	}
+
+    public void confirmed() {
+        for(Job_Task task : getTaskList()) {
+            if(task.isSuspended()) {
+                return;
+            }
+        }
+        setJobState(ACTIVE);
+    }
 	
 }

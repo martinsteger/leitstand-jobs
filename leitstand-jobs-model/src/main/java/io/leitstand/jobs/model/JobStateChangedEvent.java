@@ -41,7 +41,7 @@ public class JobStateChangedEvent implements StateChangedEvent {
 	}
 	
 	public boolean isSubmitted(){
-		return job.isSubmitted();
+		return job.isReady();
 	}
 
 	@Override

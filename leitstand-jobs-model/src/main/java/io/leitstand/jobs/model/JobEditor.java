@@ -15,19 +15,15 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.commons.model.ObjectUtil.asSet;
 import static io.leitstand.jobs.model.Job.findAllTransitions;
-import static io.leitstand.jobs.model.Job_Task.findSuccessorsOfCompletedTasks;
-import static io.leitstand.jobs.model.Job_Task.setTaskStateToReadyForExecution;
 import static java.util.Objects.hash;
 
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
@@ -81,30 +77,8 @@ public class JobEditor {
 		this.repository = repository;
 	}
 	
-	public Set<Job_Task> loadTasksToProceedWithFor(Job job){
-		Set<Job_Task> tasks = new LinkedHashSet<>();
-		for(Job_Task task : repository.execute(findSuccessorsOfCompletedTasks(job))){
-			if(task.isBlocked()){
-				continue;
-			}
-			tasks.add(task);
-		}
-		if(tasks.isEmpty()) {
-			Job_Task start = job.getStart();
-			if(start.isResumable()) {
-				return asSet(start);
-			}
-		}
-		return tasks;
-	}
-	
-	public void prepareTaskFlowForExecution(Job job){
-		job.submit();
-		repository.execute(setTaskStateToReadyForExecution(job));
-	}
-	
 	public void updateJob(Job job, JobSubmission submission){
-		if(job.isSubmitted()){
+		if(job.isReady()){
 			throw new IllegalStateException("Flow already submitted!"); // TODO Improve exception
 		}
 		updateTasks(job, submission);
@@ -128,7 +102,8 @@ public class JobEditor {
 				continue;
 			}
 			// Update the parameters of the existing task.
-			task.setParameter(task.getParameters());
+			task.setParameter(taskSubmission.getParameter());
+			task.setCanary(taskSubmission.isCanary());
 		}
 
 		// Add all new tasks.
@@ -141,6 +116,7 @@ public class JobEditor {
 										 taskSubmission.getTaskName(),
 										 taskSubmission.getElementId(),
 										 taskSubmission.getParameter());
+			task.setCanary(taskSubmission.isCanary());
 			job.addTask(task);
 		}
 		
@@ -156,12 +132,12 @@ public class JobEditor {
 	}
 
 	private void updateTransitions(Job job, JobSubmission submission) {
-		Map<SubmittedTransition,TaskTransitionSubmission> submittedTransitions = new HashMap<>();
+		Map<SubmittedTransition,TaskTransitionSubmission> submittedTransitions = new LinkedHashMap<>();
 		// Index all submitted transitions.
 		for(TaskTransitionSubmission transition : submission.getTransitions()){
 			submittedTransitions.put(new SubmittedTransition(transition.getFrom(),
-													transition.getTo()),
-											  		transition);
+													         transition.getTo()),
+											  		         transition);
 		}
 		// Update all existing transitions.
 		// Search all orphaned transitions, i.e. transitions that are not needed anymore
