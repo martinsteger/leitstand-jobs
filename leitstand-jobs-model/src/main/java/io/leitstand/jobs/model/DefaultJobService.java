@@ -431,7 +431,7 @@ public class DefaultJobService implements JobService {
 			args.add(query.getScheduledBefore());
 		}
 		
-		sql+= "ORDER BY j.tsschedule DESC, j.name, j.type, j.application ";
+		sql+= "ORDER BY j.tsschedule DESC, j.name, j.type, j.application LIMIT 100";
 		
 		
 		return db.executeQuery(prepare(sql,args), 
