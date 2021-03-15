@@ -4,7 +4,7 @@ import static io.leitstand.commons.model.BuilderUtil.assertNotInvalidated;
 
 import java.util.Date;
 
-public class JobEventLoopStatus {
+public class EventLoopStatus {
 
     /**
      * Create a new job eventloop status.
@@ -19,7 +19,7 @@ public class JobEventLoopStatus {
      */
     public static class Builder {
         
-        private JobEventLoopStatus status = new JobEventLoopStatus();
+        private EventLoopStatus status = new EventLoopStatus();
         
         /**
          * Sets whether the job event loop is enable or disabled.
@@ -47,7 +47,7 @@ public class JobEventLoopStatus {
          * Returns an immutable job event loop state.
          * @return an immutable job event loop state.
          */
-        public JobEventLoopStatus build() {
+        public EventLoopStatus build() {
             try {
                 assertNotInvalidated(getClass(), status);
                 return status;

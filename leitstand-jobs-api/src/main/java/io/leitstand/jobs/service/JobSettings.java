@@ -51,7 +51,7 @@ public class JobSettings extends ValueObject{
 			return this;
 		}
 		
-		public Builder withJobState(TaskState state){
+		public Builder withJobState(State state){
 			job.jobState = state;
 			return this;
 		}
@@ -84,7 +84,7 @@ public class JobSettings extends ValueObject{
 
 	private JobId jobId;
 	
-	private TaskState jobState;
+	private State jobState;
 	
 	private JobName jobName;
 	
@@ -103,7 +103,7 @@ public class JobSettings extends ValueObject{
 		return jobId;
 	}
 
-	public TaskState getJobState() {
+	public State getJobState() {
 		return jobState;
 	}
 	

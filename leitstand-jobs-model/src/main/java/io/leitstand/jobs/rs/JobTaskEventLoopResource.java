@@ -14,16 +14,16 @@ import javax.ws.rs.Path;
 import io.leitstand.commons.messages.Messages;
 import io.leitstand.commons.rs.Resource;
 import io.leitstand.jobs.model.EventLoopStatus;
-import io.leitstand.jobs.model.JobEventLoop;
+import io.leitstand.jobs.model.JobTaskEventLoop;
 import io.leitstand.security.auth.Scopes;
 
 @Resource
-@Path("/jobs")
+@Path("/tasks")
 @Scopes({ADM, ADM_JOB})
-public class JobEventLoopResource {
+public class JobTaskEventLoopResource {
 
     @Inject
-    private JobEventLoop service;
+    private JobTaskEventLoop service;
     
     @Inject
     private Messages messages;

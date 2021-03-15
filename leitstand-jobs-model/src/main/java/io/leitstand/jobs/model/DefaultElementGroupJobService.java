@@ -65,7 +65,7 @@ public class DefaultElementGroupJobService implements ElementGroupJobService {
 					 .withJobId(job.getJobId())
 					 .withJobName(job.getJobName())
 					 .withJobOwner(job.getJobOwner())
-					 .withTaskState(job.getJobState())
+					 .withJobState(job.getJobState())
 					 .withStartDate(job.getDateScheduled())
 					 .build());
 		}

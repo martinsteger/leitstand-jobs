@@ -15,8 +15,6 @@
  */
 package io.leitstand.jobs.model;
 
-import io.leitstand.jobs.service.TaskState;
-
 /**
  * A <code>TaskProcessor</code> processes a single task of a {@link Job}.
  * <p>
@@ -27,6 +25,11 @@ import io.leitstand.jobs.service.TaskState;
  */
 public interface TaskProcessor {
 	
-	TaskState execute(Job_Task task);
+    /**
+     * Executes the given task.
+     * @param task the task to execute
+     * @return whether the task was successfully executed or not
+     */
+	TaskResult execute(Job_Task task);
 	
 }

@@ -43,7 +43,7 @@ public class ElementGroupJobSummary extends ValueObject {
 			return this;
 		}
 
-		public Builder withTaskState(TaskState state){
+		public Builder withJobState(State state){
 			job.jobState = state;
 			return this;
 		}
@@ -68,17 +68,13 @@ public class ElementGroupJobSummary extends ValueObject {
 		
 	}
 	
-	@JsonbProperty("job_id")
 	private JobId jobId;
 	
-	@JsonbProperty("job_name")
 	private JobName jobName;
 	
-	@JsonbProperty
 	private UserName jobOwner;
-	
-	@JsonbProperty("job_state")
-	private TaskState jobState;
+
+	private State jobState;
 	
 	@JsonbProperty("date_scheduled")
 	@JsonbTypeAdapter(IsoDateAdapter.class)
@@ -92,7 +88,7 @@ public class ElementGroupJobSummary extends ValueObject {
 		return jobName;
 	}
 
-	public TaskState getJobState() {
+	public State getJobState() {
 		return jobState;
 	}
 	

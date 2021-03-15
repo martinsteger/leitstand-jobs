@@ -15,18 +15,10 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.model.JobEventLoopStatus.newJobEventLoopStatus;
-import static java.lang.Math.min;
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.currentThread;
-import static java.lang.Thread.sleep;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.logging.Level.FINER;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.logging.Logger.getLogger;
 
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import javax.annotation.Resource;
@@ -34,63 +26,25 @@ import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import io.leitstand.commons.ShutdownListener;
-import io.leitstand.commons.StartupListener;
-import io.leitstand.jobs.service.JobId;
-import io.leitstand.jobs.service.JobTaskService;
-import io.leitstand.jobs.service.TaskId;
-
 @ApplicationScoped
-public class JobEventLoop implements Runnable, StartupListener, ShutdownListener{
+public class JobEventLoop extends BaseEventLoop {
 	
-	private static final Logger LOG = Logger.getLogger(JobEventLoop.class.getName());
-	
-	private static final int JOB_LIMIT = 20; // Don't process more than 20 jobs in parallel
-
-	private Date dateModified;
-	private volatile boolean active;
+	private static final Logger LOG = getLogger(JobEventLoop.class.getName());
+	private static final long MAX_WAIT_SECONDS = 5;
 	
 	@Resource
 	private ManagedExecutorService wm;
 	
 	@Inject
-	private TaskExpiryManager expiryManager;
-	
-	@Inject
 	private JobScheduler scheduler;
 	
-	@Inject
-	private JobTaskService executor;
+	private Pause pause;
 	
 	@Override
 	public void onStartup() {
-		startEventLoop();
-	}
-
-	@Override
-	public void onShutdown() {
-		stopEventLoop();
-	}
-	
-	public void stopEventLoop() {
-		this.active = false;
-		this.dateModified = new Date();
-	}
-	
-	public void startEventLoop() {
-		if(!active) {
-			active = true;
-			this.dateModified = new Date();
-			try {
-				wm.execute(this);
-			} catch (Exception e) {
-				LOG.severe("Unable to start job event loop: "+e);
-				LOG.log(FINER,e.getMessage(),e);
-			}
-			//TODO Maintain expiry date per task to support specific expiry periods.
-			Date expired = new Date(currentTimeMillis()-MINUTES.toMillis(15));
-			expiryManager.taskTimedout(expired);
-		}
+	    this.pause = new Pause(MAX_WAIT_SECONDS, 
+	                           SECONDS);
+	    super.onStartup();
 	}
 	
 	@Override
@@ -98,16 +52,8 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	    try {
     		LOG.info("Job event loop started.");
     		
-    		long waittime = 1;
-    		while(active) {
-    			int jobCount = scheduleJobsEligibleForExecution();
-    			int taskCount = runTasksEligibleForExecution();
-    			
-    		    if(jobCount == 0 && taskCount == 0) {
-    		        waittime = pause(waittime);
-    		    } else {
-    		        waittime = 1;
-    		    }
+    		while(isActive()) {
+    		    scheduleJobs();
     		}
     		
     		LOG.info("Job event loop stopped.");
@@ -118,41 +64,25 @@ public class JobEventLoop implements Runnable, StartupListener, ShutdownListener
 	    }
 	}
 
-    private int runTasksEligibleForExecution() {
-        int taskCount = 0;
-        for(JobId job : scheduler.findRunningJobs(JOB_LIMIT)) {
-            List<TaskId> tasks = scheduler.activateExecutableTasks(job);
-            tasks.forEach(task -> executor.executeTask(job, task));
-            taskCount+=tasks.size();
+    protected void scheduleJobs() throws InterruptedException {
+        int failedJobs    = scheduler.markFailedJobs();
+        int activatedJobs = scheduler.startScheduledJobs();
+        int tasksReady    = scheduler.markTasksEligibleForExecution();
+        int jobsToConfirm = scheduler.markJobsWaitingForConfirmation();
+        int completedJobs = scheduler.markCompletedJobs();
+        
+        LOG.fine(() -> format("Job event loop: %d job(s) started, %d tasks eligible for execution, %d job(s) completed, %d job(s) failed, %d job(s) wait for confirmation,",
+                              activatedJobs,
+                              tasksReady,
+                              completedJobs,
+                              failedJobs,
+                              jobsToConfirm));
+        
+        if(activatedJobs == 0 && tasksReady == 0) {
+            pause.sleep();
+        } else {
+            pause.reset();
         }
-        return taskCount;
-    }
-
-    private int scheduleJobsEligibleForExecution() {
-        List<JobId> jobs = scheduler.findExecutableJobs(JOB_LIMIT);
-        jobs.forEach(job -> scheduler.schedule(job));
-        return jobs.size();
-    }
-	
-	private long pause(long waittime){
-	    try {
-			LOG.fine(() -> format("No jobs or tasks eligible for execution. Sleep for %d seconds before polling for new tasks",waittime));
-			sleep(TimeUnit.SECONDS.toMillis(waittime));
-			// Wait time shall never exceed a minute (if no messages are there at all).
-			return min(2*waittime, 60);
-		} catch (InterruptedException e) {
-			LOG.fine(() -> "Wait for domain events has been interrupted. Reset wait interval and proceed polling!");
-			// Restore interrupt status.
-			currentThread().interrupt();
-			return 1; // Reset waittime
-		}
-	}
-
-    public JobEventLoopStatus getStatus() {
-        return newJobEventLoopStatus()
-                .withEnabled(active)
-                .withDateModified(dateModified)
-                .build();
     }
 
 }

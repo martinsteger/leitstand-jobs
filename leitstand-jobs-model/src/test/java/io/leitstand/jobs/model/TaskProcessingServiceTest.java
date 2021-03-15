@@ -15,32 +15,34 @@
  */
 package io.leitstand.jobs.model;
 
+import static io.leitstand.jobs.model.TaskResult.active;
+import static io.leitstand.jobs.model.TaskResult.completed;
+import static io.leitstand.jobs.model.TaskResult.failed;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobName.jobName;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.CONFIRM;
+import static io.leitstand.jobs.service.State.FAILED;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
 import static java.lang.Boolean.TRUE;
 import static java.util.Arrays.asList;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.StringReader;
 
-import javax.enterprise.event.Event;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import io.leitstand.jobs.service.State;
 
 public class TaskProcessingServiceTest {
 
@@ -56,14 +58,12 @@ public class TaskProcessingServiceTest {
 	private Job_Task task;
 	private Job job;
 	private TaskProcessor processor;
-	private Event<TaskStateChangedEvent> event;
 	
 	
 	@Before
 	public void initTestResources() {
 		processors = mock(TaskProcessorDiscoveryService.class);
-		event = mock(Event.class);
-		service = new TaskProcessingService(processors, event);
+		service = new TaskProcessingService(processors);
 		job = mock(Job.class);
 		when(job.getJobId()).thenReturn(randomJobId());
 		when(job.getJobName()).thenReturn(jobName("unit-job_name"));
@@ -76,36 +76,32 @@ public class TaskProcessingServiceTest {
 	
 	@Test
 	public void complete_task_and_job_when_processor_completes_task() {
-	    when(processor.execute(task)).thenReturn(COMPLETED);
+	    when(processor.execute(task)).thenReturn(completed());
 	    when(task.isSucceeded()).thenReturn(true);
 	    
 	    
 		service.executeTask(task);
 	
 		verify(task).setTaskState(COMPLETED);
-		verify(job).completed();
 	}	
 	
 	@Test
     public void job_failed_when_processor_reports_error() {
-        when(processor.execute(task)).thenReturn(FAILED);
+        when(processor.execute(task)).thenReturn(failed());
         when(task.isFailed()).thenReturn(true);
         
         service.executeTask(task);
     
         verify(task).setTaskState(FAILED);
-        verify(job).failed();
     }
 	
     @Test
     public void do_not_touch_job_state_for_asynchronous_tasks() {
-        when(processor.execute(task)).thenReturn(ACTIVE);
+        when(processor.execute(task)).thenReturn(active());
         
         service.executeTask(task);
     
         verify(task).setTaskState(ACTIVE);
-        verify(job,never()).failed();
-        verify(job,never()).completed();
     }
 	
     @Test
@@ -115,8 +111,7 @@ public class TaskProcessingServiceTest {
         
         service.updateTask(task,COMPLETED);
         verify(task).setTaskState(CONFIRM);
-        verify(job).setJobState(CONFIRM);
-        verify(event).fire(any(TaskStateChangedEvent.class));
+        verify(job).setJobState(State.CONFIRM);
         verifyZeroInteractions(processor);
         
     }
@@ -129,8 +124,6 @@ public class TaskProcessingServiceTest {
        
        service.updateTask(task,FAILED);
        verify(task).setTaskState(FAILED);
-       verify(event).fire(any(TaskStateChangedEvent.class));
-       verify(job).failed();
        verifyZeroInteractions(processor);
    }
    
@@ -141,8 +134,6 @@ public class TaskProcessingServiceTest {
        service.updateTask(task,FAILED);
   
        verify(task).setTaskState(FAILED);
-       verify(job).failed();
-       verify(event).fire(any(TaskStateChangedEvent.class));
        verifyZeroInteractions(processor);
    }
    
@@ -155,13 +146,6 @@ public class TaskProcessingServiceTest {
        service.executeTask(task);
        
        verify(task).setTaskState(COMPLETED);
-       verify(job).completed();
-   }
-   
-   @Test
-   public void attempt_to_complete_job_when_task_state_set_to_completed() {
-       service.updateTask(task,COMPLETED);
-       verify(job).completed();
    }
    
    @Test
@@ -170,7 +154,6 @@ public class TaskProcessingServiceTest {
        
        service.updateTask(task,ACTIVE);
        verify(task).setTaskState(ACTIVE);
-       verify(event).fire(any(TaskStateChangedEvent.class));
        verifyZeroInteractions(processor);
    }
    
@@ -188,9 +171,7 @@ public class TaskProcessingServiceTest {
        verify(task,never()).setCanary(false); // It remains a canary task
        verify(task).setTaskState(COMPLETED);
        verify(job).confirmed();
-       verify(event).fire(any(TaskStateChangedEvent.class));
        verifyZeroInteractions(processor);
-       
    }
    
 }

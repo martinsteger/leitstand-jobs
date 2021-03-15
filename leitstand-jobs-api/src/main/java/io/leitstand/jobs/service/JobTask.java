@@ -105,7 +105,7 @@ public class JobTask extends ValueObject{
 		}
 		
 		
-		public B withTaskState(TaskState taskState) {
+		public B withTaskState(State taskState) {
 			assertNotInvalidated(getClass(), object);
 			((JobTask)object).taskState = taskState;
 			return (B) this;
@@ -168,7 +168,7 @@ public class JobTask extends ValueObject{
 	
 	private ElementRoleName elementRole;
 	
-	private TaskState taskState;
+	private State taskState;
 	
 	private Date dateModified;
 
@@ -208,7 +208,7 @@ public class JobTask extends ValueObject{
 		return taskType;
 	}
 
-	public TaskState getTaskState() {
+	public State getTaskState() {
 		return taskState;
 	}
 	

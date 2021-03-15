@@ -30,9 +30,9 @@ import static io.leitstand.jobs.service.ReasonCode.JOB0108I_JOB_REMOVED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0109E_CANNOT_COMMIT_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0110E_CANNOT_RESUME_COMPLETED_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0111E_JOB_NOT_REMOVABLE;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.CANCELLED;
-import static io.leitstand.jobs.service.TaskState.READY;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.CANCELLED;
+import static io.leitstand.jobs.service.State.WAITING;
 import static io.leitstand.security.auth.UserName.userName;
 import static io.leitstand.testing.ut.LeitstandCoreMatchers.reason;
 import static java.util.Arrays.asList;
@@ -68,7 +68,7 @@ import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobSchedule;
 import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
-import io.leitstand.jobs.service.TaskState;
+import io.leitstand.jobs.service.State;
 import io.leitstand.security.auth.UserContext;
 import io.leitstand.security.auth.UserName;
 
@@ -136,7 +136,7 @@ public class DefaultJobServiceTest {
         when(provider.fetchJob(JOB_ID)).thenReturn(job);
 		
 	    service.commitJob(JOB_ID);
-	    verify(job).setJobState(READY);
+	    verify(job).setJobState(State.READY);
 	    assertEquals(JOB0107I_JOB_STORED.getReasonCode(),
 	                 messageCaptor.getValue().getReason());
 	}
@@ -345,9 +345,9 @@ public class DefaultJobServiceTest {
         service.resumeJob(JOB_ID);
         
         verify(job).setJobState(ACTIVE);
-        verify(completed,never()).setTaskState(READY);
-        verify(ready,never()).setTaskState(READY);
-        verify(failed).setTaskState(READY);
+        verify(completed,never()).setTaskState(WAITING);
+        verify(ready,never()).setTaskState(WAITING);
+        verify(failed).setTaskState(WAITING);
         assertEquals(JOB0105I_JOB_RESUMED.getReasonCode(),
                      messageCaptor.getValue().getReason());
         
@@ -368,9 +368,9 @@ public class DefaultJobServiceTest {
         service.resumeJob(JOB_ID);
         
         verify(job).setJobState(ACTIVE);
-        verify(completed,never()).setTaskState(any(TaskState.class));
-        verify(ready,never()).setTaskState(any(TaskState.class));
-        verify(failed).setTaskState(READY);
+        verify(completed,never()).setTaskState(any(State.class));
+        verify(ready,never()).setTaskState(any(State.class));
+        verify(failed).setTaskState(WAITING);
         assertEquals(JOB0105I_JOB_RESUMED.getReasonCode(),
                      messageCaptor.getValue().getReason());
         

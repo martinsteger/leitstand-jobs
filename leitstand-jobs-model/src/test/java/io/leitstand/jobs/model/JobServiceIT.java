@@ -23,11 +23,11 @@ import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobSchedule.newJobSchedule;
 import static io.leitstand.jobs.service.JobSubmission.newJobSubmission;
 import static io.leitstand.jobs.service.JobType.jobType;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.READY;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
 import static io.leitstand.jobs.service.TaskName.taskName;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.READY;
 import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
 import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
 import static io.leitstand.jobs.service.TaskType.taskType;
@@ -40,8 +40,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Date;
-
-import javax.enterprise.event.Event;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -197,8 +195,7 @@ public class JobServiceIT extends JobsIT{
 		
 		this.tasks = new DefaultJobTaskService(repository, 
 		                                       new JobProvider(repository),
-		                                       new TaskProcessingService(discovery, 
-		                                                                 mock(Event.class)));
+		                                       new TaskProcessingService(discovery));
 		
 	}
 	
@@ -222,8 +219,7 @@ public class JobServiceIT extends JobsIT{
             tasks.updateTask(JOB_ID, start.getTaskId(), COMPLETED);
             tasks.updateTask(JOB_ID, split.getTaskId(), COMPLETED);
             tasks.updateTask(JOB_ID, branchA0.getTaskId(), COMPLETED);
-            tasks.updateTask(JOB_ID, branchA1.getTaskId(), ACTIVE);
-            tasks.updateTask(JOB_ID, branchA1.getTaskId(), COMPLETED);
+            tasks.updateTask(JOB_ID, branchA1.getTaskId(), READY);
             tasks.updateTask(JOB_ID, branchB0.getTaskId(), ACTIVE);
        });
        
@@ -231,7 +227,8 @@ public class JobServiceIT extends JobsIT{
            JobProgress jobProgress = jobs.getJobProgress(JOB_ID);
            assertThat(jobProgress.getCompletedCount(),is(3));
            assertThat(jobProgress.getActiveCount(),is(1));
-           assertThat(jobProgress.getReadyCount(),is(3));
+           assertThat(jobProgress.getReadyCount(),is(1));
+           assertThat(jobProgress.getWaitingCount(),is(2));
            
        });
     }

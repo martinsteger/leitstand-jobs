@@ -19,27 +19,26 @@ import static io.leitstand.commons.json.JsonMarshaller.marshal;
 import static io.leitstand.commons.json.JsonUnmarshaller.unmarshal;
 import static io.leitstand.commons.json.SerializableJsonObject.serializable;
 import static io.leitstand.commons.json.SerializableJsonObject.unwrap;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.CANCELLED;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.NEW;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.REJECTED;
-import static io.leitstand.jobs.service.TaskState.SKIPPED;
-import static io.leitstand.jobs.service.TaskState.TIMEOUT;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.CANCELLED;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.CONFIRM;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.NEW;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.REJECTED;
+import static io.leitstand.jobs.service.State.SKIPPED;
+import static io.leitstand.jobs.service.State.TIMEOUT;
+import static io.leitstand.jobs.service.State.WAITING;
 import static java.lang.String.format;
 import static java.util.Collections.unmodifiableList;
 import static javax.persistence.CascadeType.ALL;
 import static javax.persistence.EnumType.STRING;
 
 import java.util.Date;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.json.JsonObject;
 import javax.persistence.Column;
@@ -47,9 +46,7 @@ import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
 import javax.persistence.JoinColumn;
-import javax.persistence.LockModeType;
 import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
@@ -70,63 +67,32 @@ import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobName;
 import io.leitstand.jobs.service.JobType;
+import io.leitstand.jobs.service.State;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskName;
-import io.leitstand.jobs.service.TaskState;
 import io.leitstand.jobs.service.TaskType;
 import io.leitstand.security.auth.UserName;
 
 @Entity
 @Table(schema="job", name="job_task")
-@NamedQueries({
-	@NamedQuery(name="Job_Task.findByTaskId", 
-				query="SELECT t FROM Job_Task t WHERE t.taskId=:id"),
-	@NamedQuery(name="Job_Task.findSuccessorsOfCompletedTasks", 
-				query="SELECT t.to FROM Job_Task_Transition t "+
-					  "WHERE t.from.job=:job "+
-					  "AND t.from.taskState=io.leitstand.jobs.service.TaskState.COMPLETED "+
-					  "AND t.to.taskState=io.leitstand.jobs.service.TaskState.READY"),
-	@NamedQuery(name="Job_Task.findSuccessorsOfTask", 
-				query="SELECT t.to FROM Job_Task_Transition t WHERE t.from=:task"),
-	@NamedQuery(name="Job_Task.setFlowTasksReadyForExecution", 
-				query="UPDATE Job_Task t "+
-					  "SET t.taskState=io.leitstand.jobs.service.TaskState.READY "+
-					  "WHERE t.job=:job"),
-	@NamedQuery(name="Job_Task.markExpiredTasks",
-				query="UPDATE Job_Task t "+
-					  "SET t.taskState=io.leitstand.jobs.service.TaskState.TIMEOUT "+
-					  "WHERE t.taskState=io.leitstand.jobs.service.TaskState.ACTIVE "+
-					  "AND t.dateModified < :expired"),
-
-})
+@NamedQuery(name="Job_Task.findByTaskId", 
+			query="SELECT t FROM Job_Task t WHERE t.taskId=:id")
+@NamedQuery(name="Job_Task.setTasksWaitingForExecution", 
+			query="UPDATE Job_Task t "+
+				  "SET t.taskState=io.leitstand.jobs.service.State.WAITING "+
+				  "WHERE t.job=:job")
+@NamedQuery(name="Job_Task.markExpiredTasks",
+			query="UPDATE Job_Task t "+
+				  "SET t.taskState=io.leitstand.jobs.service.State.TIMEOUT "+
+				  "WHERE t.taskState=io.leitstand.jobs.service.State.ACTIVE "+
+				  "AND t.dateModified < :expired")
 public class Job_Task extends AbstractEntity{
 
 	private static final long serialVersionUID = 1L;
 
-	public static Query<Set<Job_Task>> findSuccessorsOfCompletedTasks(Job job, LockModeType locking){
-		return em -> new HashSet<>(em.createNamedQuery("Job_Task.findSuccessorsOfCompletedTasks", Job_Task.class)
-		                             .setLockMode(locking)
-		                             .setParameter("job",job)
-		                             .getResultList());
-	}
-	
-	public static Query<List<Job_Task>> findSuccessorsOfTask(Job_Task task) {
-		return em -> em.createNamedQuery("Job_Task.findSuccessorsOfTask", Job_Task.class)
-					   .setParameter("task",task)
-					   .getResultList();
-	}
-	
 	public static Query<Job_Task> findTaskById(TaskId id) {
 		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
 				       .setParameter("id",id)
-				       .getSingleResult();
-	}
-	
-	public static Query<Job_Task> findTaskById(TaskId id,
-											   LockModeType lockMode) {
-		return em -> em.createNamedQuery("Job_Task.findByTaskId", Job_Task.class)
-				       .setParameter("id",id)
-				       .setLockMode(lockMode)
 				       .getSingleResult();
 	}
 	
@@ -136,8 +102,8 @@ public class Job_Task extends AbstractEntity{
 					   .executeUpdate();
 	}
 
-	public static Update setTaskStateToReadyForExecution(Job job) {
-		return em -> em.createNamedQuery("Job_Task.setFlowTasksReadyForExecution")
+	public static Update setTaskStateToWaitingForExecution(Job job) {
+		return em -> em.createNamedQuery("Job_Task.setTasksWaitingForExecution")
 					   .setParameter("job", job)
 					   .executeUpdate();
 	}
@@ -166,7 +132,7 @@ public class Job_Task extends AbstractEntity{
 	
 	@Enumerated(STRING)
 	@Column(name="state")
-	private TaskState taskState;
+	private State taskState;
 
 	@Column(name="element_uuid")
 	@Convert(converter=ElementIdConverter.class)
@@ -306,7 +272,7 @@ public class Job_Task extends AbstractEntity{
 		return job.getJobName();
 	}
 	
-	public void setTaskState(TaskState state) {
+	public void setTaskState(State state) {
 		this.taskState = state;
 	}
 	
@@ -314,7 +280,7 @@ public class Job_Task extends AbstractEntity{
 		return taskId;
 	}
 	
-	public TaskState getTaskState() {
+	public State getTaskState() {
 		return taskState;
 	}
 	
@@ -326,23 +292,12 @@ public class Job_Task extends AbstractEntity{
 		return getTaskState() == FAILED;
 	}
 
+	public boolean isWaiting() {
+	    return getTaskState() == WAITING;
+	}
 	
 	public boolean isSucceeded(){
-		return isTerminated() && getTaskState() == COMPLETED;
-	}
-	
-	public boolean isBlocked(){
-		for(Job_Task_Transition transition:predecessors){
-			if(transition.getFrom().isSucceeded()){
-				continue;
-			}
-			return true;
-		}
-		return false;
-	}
-	
-	public boolean isEligibleForExecution() {
-	    return isReady() && !isBlocked();
+		return getTaskState() == COMPLETED;
 	}
 	
 	public boolean isActive(){
@@ -454,8 +409,24 @@ public class Job_Task extends AbstractEntity{
 	public List<Job_Task_Transition> getPredecessors() {
         return unmodifiableList(predecessors);
     }
-	
 
+	public boolean isEligibleForExecution() {
+	    if(isReady()) {
+	        return true;
+	    }
+	    if(isWaiting()) {
+	        for(Job_Task_Transition t : getPredecessors()) {
+	            Job_Task predecessor = t.getFrom();
+	            if(predecessor.isSucceeded()) {
+	                continue;
+	            }
+	            return false;
+	        }
+	        return true;
+	    }
+	    return false;
+	}
+	
 	public void setCanary(boolean suspend) {
 		this.suspend = suspend;
 	}
@@ -513,6 +484,10 @@ public class Job_Task extends AbstractEntity{
 	public boolean isCancelled() {
 		return getTaskState() == CANCELLED;
 	}
+	
+	public boolean isNew() {
+	    return getTaskState() == NEW;
+	}
 
 	public boolean isResumable() {
 		if(isSucceeded()) {
@@ -522,6 +497,10 @@ public class Job_Task extends AbstractEntity{
 		if(isActive()) {
 			// An active task does not have to be started again.
 			return false;
+		}
+		if(isNew()) {
+		    // A new task is not eligible for execution and cannot be executed.
+		    return false;
 		}
 		return true;
 	}

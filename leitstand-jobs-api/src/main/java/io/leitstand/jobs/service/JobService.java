@@ -45,6 +45,6 @@ public interface JobService {
 
 	void storeJobSettings(JobId jobId, JobSettings settings);
 	
-	void updateJobState(JobId jobId, TaskState state);
+	void updateJobState(JobId jobId, State state);
 
 }

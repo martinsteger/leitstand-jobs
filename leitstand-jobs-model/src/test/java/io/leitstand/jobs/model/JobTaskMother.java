@@ -15,11 +15,11 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.REJECTED;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.REJECTED;
 
 public class JobTaskMother {
 

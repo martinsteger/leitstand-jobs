@@ -19,8 +19,8 @@ import static io.leitstand.commons.rs.Responses.success;
 import static io.leitstand.jobs.rs.Scopes.JOB;
 import static io.leitstand.jobs.rs.Scopes.JOB_READ;
 import static io.leitstand.jobs.rs.Scopes.JOB_TASK;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.FAILED;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.FAILED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import javax.inject.Inject;
@@ -39,8 +39,8 @@ import io.leitstand.commons.rs.Resource;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskInfo;
 import io.leitstand.jobs.service.JobTaskService;
+import io.leitstand.jobs.service.State;
 import io.leitstand.jobs.service.TaskId;
-import io.leitstand.jobs.service.TaskState;
 import io.leitstand.security.auth.Scopes;
 
 @Resource
@@ -60,7 +60,7 @@ public class JobTaskResource {
 	@Path("/{job_id}/tasks/{task_id}/task_state")
 	public void updateTask(@Valid @PathParam("job_id") JobId jobId, 
 	                       @Valid @PathParam("task_id") TaskId taskId,
-	                       TaskState state){
+	                       State state){
 	    service.updateTask(jobId, 
 	                       taskId, 
 	                       state);
@@ -76,7 +76,7 @@ public class JobTaskResource {
 		if(200 <= status && status <= 299){
 			service.updateTask(jobId,
 							   taskId, 
-							  COMPLETED);
+							   COMPLETED);
 		} else {
 			service.updateTask(jobId,
 							   taskId, 

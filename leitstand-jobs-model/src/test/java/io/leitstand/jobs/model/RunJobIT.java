@@ -15,13 +15,13 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.model.Job_Task.findSuccessorsOfTask;
 import static io.leitstand.jobs.model.Job_Task.findTaskById;
+import static io.leitstand.jobs.model.TaskResult.active;
+import static io.leitstand.jobs.model.TaskResult.completed;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobSubmission.newJobSubmission;
+import static io.leitstand.jobs.service.State.COMPLETED;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskSubmission.newTaskSubmission;
 import static io.leitstand.jobs.service.TaskTransitionSubmission.newTaskTransitionSubmission;
 import static io.leitstand.security.auth.UserName.userName;
@@ -34,8 +34,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import javax.enterprise.event.Event;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,11 +44,10 @@ import io.leitstand.commons.model.Repository;
 import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobProgress;
-import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
+import io.leitstand.jobs.service.State;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskName;
-import io.leitstand.jobs.service.TaskState;
 import io.leitstand.jobs.service.TaskSubmission;
 import io.leitstand.jobs.service.TaskTransitionSubmission;
 import io.leitstand.jobs.service.TaskType;
@@ -94,7 +91,6 @@ public class RunJobIT extends JobsIT{
 	private DefaultJobService jobs;
 	private DefaultJobTaskService tasks;
 	private JobId jobId;
-	private Event<TaskStateChangedEvent> event;
 	private TaskProcessor processor;
 	private TaskSubmission start; 	
 	private TaskSubmission split; 	
@@ -156,13 +152,12 @@ public class RunJobIT extends JobsIT{
 		// Set job eligible for deployment
 		jobs.commitJob(jobId);
 		});
-		event = mock(Event.class);
 		processor = mock(TaskProcessor.class);
 		TaskProcessorDiscoveryService discovery = mock(TaskProcessorDiscoveryService.class);
 		when(discovery.findElementTaskProcessor(any(Job_Task.class))).thenReturn(processor);
 		tasks = new DefaultJobTaskService(repository,
                                           new JobProvider(repository),
-										  new TaskProcessingService(discovery,event));
+										  new TaskProcessingService(discovery));
 		
 	}
 	
@@ -171,7 +166,7 @@ public class RunJobIT extends JobsIT{
 	    return findSuccessorsEligbleForExecution(taskId);
 	}
 
-	List<TaskId> updateTask(JobId jobId, TaskId taskId, TaskState state){
+	List<TaskId> updateTask(JobId jobId, TaskId taskId, State state){
 	    tasks.updateTask(jobId, taskId, state);
 	    return findSuccessorsEligbleForExecution(taskId);
 	}
@@ -180,16 +175,17 @@ public class RunJobIT extends JobsIT{
     private List<TaskId> findSuccessorsEligbleForExecution(TaskId taskId) {
         Job_Task task = repository.execute(findTaskById(taskId));
 	    
-	    return repository.execute(findSuccessorsOfTask(task))
-	                     .stream()
-	                     .filter(Job_Task::isEligibleForExecution)
-	                     .map(Job_Task::getTaskId)
-	                     .collect(toList());
+        return task.getSuccessors()
+	               .stream()
+	               .map(Job_Task_Transition::getTo)
+	               .filter(Job_Task::isEligibleForExecution)
+	               .map(Job_Task::getTaskId)
+	               .collect(toList());
     }
 	
 	@Test
 	public void run_job_synchronously() {
-		when(processor.execute(any(Job_Task.class))).thenReturn(COMPLETED);
+		when(processor.execute(any(Job_Task.class))).thenReturn(completed());
 		transaction(()->{
 		    List<TaskId> successors = executeTask(jobId,start.getTaskId());
 		    assertSuccessors(successors, split);
@@ -228,7 +224,7 @@ public class RunJobIT extends JobsIT{
 	
 	@Test
 	public void run_job_asynchronously() {
-		when(processor.execute(any(Job_Task.class))).thenReturn(ACTIVE);
+		when(processor.execute(any(Job_Task.class))).thenReturn(active());
 		
 		// Execute start task asynchronously
 		transaction(() -> {
@@ -325,9 +321,6 @@ public class RunJobIT extends JobsIT{
 		assertEquals(0,progress.getFailedCount());
 		assertEquals(0,progress.getReadyCount());
 		assertEquals(7,progress.getCompletedCount());
-		JobSettings settings = jobs.getJobSettings(jobId);
-		assertEquals(COMPLETED,settings.getJobState());
-		
 	}
 	
 

@@ -15,109 +15,102 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.model.Job.findJobById;
-import static io.leitstand.jobs.model.Job.findRunnableJobs;
-import static io.leitstand.jobs.model.Job_Task.findSuccessorsOfCompletedTasks;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static java.lang.String.format;
-import static java.util.Arrays.asList;
-import static java.util.logging.Level.FINER;
-import static java.util.stream.Collectors.toList;
-import static javax.persistence.LockModeType.PESSIMISTIC_WRITE;
+import static io.leitstand.commons.db.DatabaseService.prepare;
 
-import java.util.Date;
-import java.util.List;
-import java.util.logging.Logger;
-
-import javax.enterprise.event.Event;
 import javax.inject.Inject;
 
-import io.leitstand.commons.model.Repository;
+import io.leitstand.commons.db.DatabaseService;
 import io.leitstand.commons.model.Service;
-import io.leitstand.commons.tx.SubtransactionService;
-import io.leitstand.jobs.service.JobId;
-import io.leitstand.jobs.service.JobTaskService;
-import io.leitstand.jobs.service.TaskId;
 
 @Service
 public class JobScheduler {
 	
-	private static final Logger LOG = Logger.getLogger(JobScheduler.class.getName());
+    @Inject
+    @Jobs
+	private DatabaseService db;
 	
-	@Inject
-	@Jobs
-	private Repository repository;
+	public int startScheduledJobs() {
+	    String sql = "UPDATE job.job "+
+	                 "SET state='ACTIVE' "+
+	                 "WHERE state='READY' "+
+	                 "AND tsschedule <= NOW()";
+	    return db.executeUpdate(prepare(sql));	    
+	}
+	
+	public int markTasksEligibleForExecution(){
+	    String sql = "WITH "+ 
+	                 "active_jobs(id) AS ( "+
+	                   "SELECT id "+ 
+	                   "FROM job.job "+ 
+	                   "WHERE state='ACTIVE' "+
+	                 "), "+
+	                 "blocked_tasks(id) AS ( "+
+	                   "SELECT t.id "+
+	                   "FROM job.job_task t "+
+	                   "JOIN job.job_task_transition tr "+
+	                   "ON tr.to_task_id = t.id "+
+	                   "JOIN job.job_task p "+ 
+	                   "ON tr.from_task_id = p.id "+
+	                   "WHERE t.state = 'WAITING' "+
+	                   "AND p.state <> 'COMPLETED' "+
+	                   "AND t.job_id IN (SELECT id FROM active_jobs) "+
+	                 ") "+
+	                 "UPDATE job.job_task t "+
+	                 "SET state='READY' "+
+	                 "WHERE t.state='WAITING' "+
+	                 "AND t.id NOT IN (SELECT id FROM blocked_tasks) "+
+	                 "AND t.job_id IN (SELECT id FROM active_jobs)";
+	    return db.executeUpdate(prepare(sql));
+	}
 
-	@Inject
-	private JobTaskService service;
-	
-	@Inject
-	private Event<JobStateChangedEvent> jobStateEventSink;
-	
-	@Inject
-	@Jobs
-	private SubtransactionService tx;
-	
-	/**
-	 * Returns all jobs that are eligible for execution.
-	 * @return List of IDs of all executable tasks.
-	 */
-	public List<JobId> findExecutableJobs(int limit){
-		Date now = new Date();
-		return repository.execute(findRunnableJobs(now, limit))
-						 .stream()
-						 .map(Job::getJobId)
-						 .collect(toList());
+	public int markCompletedJobs() {
+	    String sql = "WITH completed_jobs AS ( "+
+	                   "SELECT j.id FROM job.job j "+
+	                   "LEFT JOIN job.job_task t "+ 
+	                   "ON j.id = t.job_id "+
+	                   "AND t.state <> 'COMPLETED' "+
+	                   "WHERE j.state = 'ACTIVE' "+
+	                   "AND t.id IS NULL "+
+	                 ") "+
+	                 "UPDATE job.job j "+
+	                 "SET state = 'COMPLETED' "+
+	                 "FROM completed_jobs c "+
+	                 "WHERE j.id = c.id "+
+	                 "AND j.state = 'ACTIVE'";
+	    return db.executeUpdate(prepare(sql));
 	}
-	
-	public List<JobId> findRunningJobs(int limit){
-	    return repository.execute(Job.findRunningJobs(limit))
-	                     .stream()
-	                     .map(Job::getJobId)
-	                     .collect(toList());
-	}
-	
-	public List<TaskId> activateExecutableTasks(JobId jobId){
-	    // Make sure to have exclusive access to the job when changing tasks
-	    // from READY to ACTIVE state to avoid duplicate execution of the
-	    // same task.
-	    Job job = repository.execute(findJobById(jobId, PESSIMISTIC_WRITE));
-	    if(job.getStart().isSucceeded()) {
-    	    return repository.execute(findSuccessorsOfCompletedTasks(job, PESSIMISTIC_WRITE))
-    	                     .stream()
-    	                     .filter(Job_Task::isEligibleForExecution)
-    	                     .map(Job_Task::getTaskId)
-    	                     .collect(toList());
-	    }
-	    Job_Task start = job.getStart();
-	    start.setTaskState(ACTIVE);
-	    return asList(start.getTaskId());
-	}
-	
-	public void schedule(JobId jobId){
-		try{
-		    Job job = repository.execute(findJobById(jobId));
-			job.setJobState(ACTIVE);
-			jobStateEventSink.fire(new JobStateChangedEvent(job));
-			service.executeTask(job.getJobId(),
-								job.getStart().getTaskId());
-		} catch (Exception e){
-		    // Transaction might be marked for rollback.
-		    // Start new transaction to mark job as failed.
-		    tx.run((r) -> {
-		        Job job = r.execute(findJobById(jobId));
-	            job.setJobState(FAILED);
-	            jobStateEventSink.fire(new JobStateChangedEvent(job));	        
-	            LOG.info(()->format("Cannot start job %s (%s): %s",
-	                    job.getJobName(),
-	                    job.getJobId(),
-	                    e.getMessage()));
-		    });
-		    
-			LOG.log(FINER,e.getMessage(),e);
-		}
-	}
-	
 
+    public int markJobsWaitingForConfirmation() {
+        String sql = "WITH jobs_to_confirm AS ( "+
+                       "SELECT DISTINCT j.id FROM job.job j "+
+                       "JOIN job.job_task t "+ 
+                       "ON j.id = t.job_id "+
+                       "AND t.state = 'CONFIRM' "+
+                       "WHERE j.state = 'ACTIVE' "+
+                     ") "+
+                     "UPDATE job.job j "+
+                     "SET state = 'CONFIRM' "+
+                     "FROM jobs_to_confirm c "+
+                     "WHERE j.id = c.id "+
+                     "AND j.state = 'ACTIVE'";
+        return db.executeUpdate(prepare(sql));
+    }
+	
+	
+	public int markFailedJobs() {
+        String sql = "WITH failed_jobs AS ( "+
+                       "SELECT DISTINCT j.id FROM job.job j "+
+                       "JOIN job.job_task t "+ 
+                       "ON j.id = t.job_id "+
+                       "AND t.state = 'FAILED' "+
+                       "WHERE j.state = 'ACTIVE' "+
+                     ") "+
+                     "UPDATE job.job j "+
+                     "SET state = 'FAILED' "+
+                     "FROM failed_jobs c "+
+                     "WHERE j.id = c.id "+
+                     "AND j.state = 'ACTIVE'";
+        return db.executeUpdate(prepare(sql));
+	}
+	
 }

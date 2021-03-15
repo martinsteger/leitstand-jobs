@@ -15,15 +15,16 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.CANCELLED;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.NEW;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.SKIPPED;
-import static io.leitstand.jobs.service.TaskState.TIMEOUT;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.CANCELLED;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.CONFIRM;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.NEW;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.SKIPPED;
+import static io.leitstand.jobs.service.State.TIMEOUT;
+import static io.leitstand.jobs.service.State.WAITING;
 import static java.util.Collections.unmodifiableMap;
 import static javax.persistence.CascadeType.ALL;
 import static javax.persistence.EnumType.STRING;
@@ -63,8 +64,8 @@ import io.leitstand.jobs.service.JobApplication;
 import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobName;
 import io.leitstand.jobs.service.JobType;
+import io.leitstand.jobs.service.State;
 import io.leitstand.jobs.service.TaskId;
-import io.leitstand.jobs.service.TaskState;
 import io.leitstand.security.auth.UserName;
 import io.leitstand.security.auth.jpa.UserNameConverter;
 
@@ -80,17 +81,17 @@ import io.leitstand.security.auth.jpa.UserNameConverter;
 @NamedQuery(name="Job.findReadyAndActiveByElementGroup",
 			query="SELECT j FROM Job j "+
 				  "WHERE j.groupId=:groupId "+
-				  "AND (j.state=io.leitstand.jobs.service.TaskState.READY "+
-				       "OR j.state=io.leitstand.jobs.service.TaskState.ACTIVE)" )
+				  "AND (j.state=io.leitstand.jobs.service.State.READY "+
+				       "OR j.state=io.leitstand.jobs.service.State.ACTIVE)" )
 @NamedQuery(name="Job.findJobs",
 			query="SELECT j FROM Job j ORDER BY j.tsschedule DESC")
 @NamedQuery(name="Job.findRunnableJobs",
 			query="SELECT j FROM Job j "+
-				  "WHERE j.state=io.leitstand.jobs.service.TaskState.READY "+
+				  "WHERE j.state=io.leitstand.jobs.service.State.READY "+
 				  "AND j.tsschedule < :scheduled" )
 @NamedQuery(name="Job.findRunningJobs",
             query="SELECT j FROM Job j "+
-                  "WHERE j.state=io.leitstand.jobs.service.TaskState.ACTIVE")
+                  "WHERE j.state=io.leitstand.jobs.service.State.ACTIVE")
 public class Job extends VersionableEntity {
 	
 	private static final long serialVersionUID = 1L;
@@ -173,7 +174,7 @@ public class Job extends VersionableEntity {
 	private Job_Task start;
 	
 	@Enumerated(STRING)
-	private TaskState state;
+	private State state;
 	
 	@Column
 	@Convert(converter=JobNameConverter.class)
@@ -267,7 +268,7 @@ public class Job extends VersionableEntity {
 	public void submit() {
 	    if(isNew()) {
 	        this.state = READY;
-	        getTaskList().forEach(t -> t.setTaskState(READY));
+	        getTaskList().forEach(t -> t.setTaskState(WAITING));
 	    }
 	}
 
@@ -299,11 +300,11 @@ public class Job extends VersionableEntity {
 		return owner;
 	}
 
-	public TaskState getJobState() {
+	public State getJobState() {
 		return state;
 	}
 
-	void setJobState(TaskState state) {
+	void setJobState(State state) {
 		this.state = state;
 	}
 
@@ -311,12 +312,12 @@ public class Job extends VersionableEntity {
 		this.state = FAILED;
 		this.tasks.values()
 				  .stream()
-				  .filter(Job_Task::isReady)
+				  .filter(t -> t.isReady() || t.isWaiting())
 				  .forEach(task -> task.setTaskState(SKIPPED));
 	}
 	
-	public boolean isInState(TaskState... states){
-		for(TaskState s : states){
+	public boolean isInState(State... states){
+		for(State s : states){
 			if(this.state == s){
 				return true;
 			}
@@ -324,7 +325,7 @@ public class Job extends VersionableEntity {
 		return false;
 	}
 
-	public boolean isNotInState(TaskState...states) {
+	public boolean isNotInState(State...states) {
 		return !isInState(states);
 	}
 
@@ -372,10 +373,10 @@ public class Job extends VersionableEntity {
 	}
 	
 	public Set<Job_Task> getOrderedTasks(){
-		Set<Job_Task> tasks = new LinkedHashSet<>();
-		tasks.add(getStart());
-		traverse(tasks, getStart());
-		return tasks;
+		Set<Job_Task> orderedTasks = new LinkedHashSet<>();
+		orderedTasks.add(getStart());
+		traverse(orderedTasks, getStart());
+		return orderedTasks;
 	}
 	
 	private void traverse(Set<Job_Task> tasks, Job_Task task) {

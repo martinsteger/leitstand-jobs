@@ -15,19 +15,31 @@
  */
 package io.leitstand.jobs.service;
 
-public enum TaskState {
-	NEW(false),
+public enum State {
+	/** A new task of a new process. The task is not eligible for execution.*/
+    NEW(false),
+    /** A task waiting for other tasks to complete. The task is not eligible for execution.*/
+	WAITING(false),
+	/** A task ready for execution.*/
 	READY(false),
+	/** A task that is currently being processed.*/
 	ACTIVE(false),
+	/** A failed task.*/
 	FAILED(true),
+	/** A cancelled task.*/
 	CANCELLED(true),
+	/** A skipped task.*/
 	SKIPPED(true),
+	/** Task is done and waits for confirmation to complete.*/
 	CONFIRM(false),
+	/** Task is completed, i.e. task is done and all waiting successors are marked ready.*/
 	COMPLETED(true),
+	/** A active task was not completed in time. This is an information state. The task can still change to any terminal state or DONE state, but it was not <i>done</i> in the specified time range.*/
 	TIMEOUT(false),
+	/** Task has been rejected and cannot be executed.*/
 	REJECTED(true);
 	
-	private TaskState(boolean terminal){
+	private State(boolean terminal){
 		this.terminal = terminal;
 	}
 	
@@ -37,7 +49,7 @@ public enum TaskState {
 		return terminal;
 	}
 
-	public static TaskState taskState(String state) {
+	public static State taskState(String state) {
 		return valueOf(state);
 	}
 	

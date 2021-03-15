@@ -15,14 +15,14 @@
  */
 package io.leitstand.jobs.model;
 
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.CANCELLED;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.NEW;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.TIMEOUT;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.CANCELLED;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.CONFIRM;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.NEW;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.TIMEOUT;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertTrue;
 
@@ -34,13 +34,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import io.leitstand.jobs.service.TaskState;
+import io.leitstand.jobs.service.State;
 
 @RunWith(Parameterized.class)
 public class JobStateTest {
 	
 	
-	private static Object[] assertion(TaskState state,
+	private static Object[] assertion(State state,
 									  String message,
 									  Function<Job,Boolean> assertion)  {
 		return new Object[] {state,message,assertion};
@@ -111,10 +111,10 @@ public class JobStateTest {
 	
 	
 	private Function<Job,Boolean> assertion;
-	private TaskState jobState;
+	private State jobState;
 	private String description;
 	private Job job;
-	public JobStateTest(TaskState state, String description, Function<Job,Boolean> assertion ) {
+	public JobStateTest(State state, String description, Function<Job,Boolean> assertion ) {
 		this.jobState = state;
 		this.assertion = assertion;
 		this.description = description;

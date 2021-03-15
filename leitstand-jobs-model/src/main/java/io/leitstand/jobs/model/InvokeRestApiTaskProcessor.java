@@ -16,10 +16,9 @@
 package io.leitstand.jobs.model;
 
 import static io.leitstand.commons.etc.FileProcessor.yaml;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.REJECTED;
+import static io.leitstand.jobs.model.TaskResult.completed;
+import static io.leitstand.jobs.model.TaskResult.failed;
+import static io.leitstand.jobs.model.TaskResult.rejected;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -28,7 +27,6 @@ import javax.ws.rs.core.Response;
 
 import io.leitstand.commons.http.GenericRestClient;
 import io.leitstand.commons.http.Request;
-import io.leitstand.jobs.service.TaskState;
 
 public class InvokeRestApiTaskProcessor implements TaskProcessor {
 	
@@ -38,13 +36,13 @@ public class InvokeRestApiTaskProcessor implements TaskProcessor {
 		this.client = client;
 	}
 	
-	public TaskState execute(Job_Task task) {
+	public TaskResult execute(Job_Task task) {
 		try {
 			Request  request  = adaptFromJsonJsonRequest(task);
 			Response response = client.invoke(request);
 			return mapStatusToTaskState(response);
 		} catch(Exception e) {
-			return FAILED;
+			return failed(e.getMessage());
 		}
 	}
 
@@ -53,19 +51,20 @@ public class InvokeRestApiTaskProcessor implements TaskProcessor {
 			   .process(new StringReader(task.getParameters().toString()));
 	}
 
-	protected TaskState mapStatusToTaskState(Response response) {
+	protected TaskResult mapStatusToTaskState(Response response) {
 		switch(response.getStatus()) {
 			case 200: //OK
 			case 201: //Created
 			case 204: //No content
-				return COMPLETED;
+				return completed();
 			case 202: //Accepted
-				return ACTIVE;
+				return failed(response.readEntity(String.class));
+			case 401: //Unauthorized
+			case 403: //Forbidden
 			case 409: //Conflict
-				return REJECTED;
+				return rejected(response.readEntity(String.class));
 			default:
-				return FAILED;
-		
+				return failed(response.readEntity(String.class));
 		}
 	
 	}

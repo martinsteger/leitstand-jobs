@@ -45,6 +45,7 @@ public class JobResources implements ApiResourceProvider {
 					 JobResource.class,
 					 JobEventLoopResource.class,
 					 JobTaskResource.class,
+					 JobTaskEventLoopResource.class,
 					 ElementGroupJobResource.class,
 					 JobApplicationAdapter.class,
 					 JobIdAdapter.class,

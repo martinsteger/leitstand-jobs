@@ -30,11 +30,10 @@ import static io.leitstand.jobs.service.JobType.jobType;
 import static io.leitstand.jobs.service.ReasonCode.JOB0200E_TASK_NOT_FOUND;
 import static io.leitstand.jobs.service.ReasonCode.JOB0203E_TASK_OWNED_BY_OTHER_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0204E_CANNOT_MODIFY_TASK_OF_RUNNING_JOB;
+import static io.leitstand.jobs.service.State.COMPLETED;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
 import static io.leitstand.jobs.service.TaskName.taskName;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
 import static io.leitstand.jobs.service.TaskType.taskType;
-import static io.leitstand.security.auth.UserName.userName;
 import static io.leitstand.testing.ut.LeitstandCoreMatchers.reason;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -69,7 +68,6 @@ import io.leitstand.jobs.service.JobType;
 import io.leitstand.jobs.service.TaskId;
 import io.leitstand.jobs.service.TaskName;
 import io.leitstand.jobs.service.TaskType;
-import io.leitstand.security.auth.UserName;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DefaultJobTaskServiceTest {
@@ -82,8 +80,6 @@ public class DefaultJobTaskServiceTest {
 	private static final JobName JOB_NAME = jobName("job");
 	private static final JobType JOB_TYPE = jobType("type");
 	private static final JobApplication JOB_APP = jobApplication("app");
-	private static final UserName JOB_OWNER = userName("user");
-	
 	
 	@Rule
 	public ExpectedException exception = ExpectedException.none();

@@ -34,6 +34,11 @@ public class JobProgress extends ValueObject {
 			this.progress.readyCount = count;
 			return this;
 		}
+		
+		public Builder withWaitingCount(int count) {
+		    this.progress.waitingCount = count;
+		    return this;
+		}
 
 		public Builder withActiveCount(int count) {
 			this.progress.activeCount = count;
@@ -74,6 +79,8 @@ public class JobProgress extends ValueObject {
 	private int failedCount;
 	@JsonbProperty("timeout")
 	private int timeoutCount;
+	@JsonbProperty("waiting")
+	private int waitingCount;
 	
 	public int getReadyCount() {
 		return readyCount;
@@ -95,8 +102,8 @@ public class JobProgress extends ValueObject {
 		return timeoutCount;
 	}
 
-	
-	
-	
+	public int getWaitingCount() {
+        return waitingCount;
+    }	
 	
 }

@@ -80,13 +80,13 @@ public class JobExport implements JobGraphVisitor{
 	private String name(Job_Task node){
 		ElementSettings element = elements.get(node.getElementId());
 		if(element == null) {
-			return format("%s\n%s\n%s",
+			return format("%s%n%s%n%s",
 						  node.getTaskType(),
 						  node.getTaskName(),
 						  node.getTaskState());
 		}
 		if(element.getElementAlias() != null) {
-    		return format("%s\n%s\n%s\n%s\n%s\n%s",
+    		return format("%s%n%s%n%s%n%s%n%s%n%s",
     				  	  node.getTaskType(),
     				  	  node.getTaskName(),
     				  	  element.getElementRole(),
@@ -94,7 +94,7 @@ public class JobExport implements JobGraphVisitor{
     				  	  element.getElementAlias(),
     				  	  node.getTaskState());
 		}
-        return format("%s\n%s\n%s\n%s\n%s",
+        return format("%s%n%s%n%s%n%s%n%s",
                       node.getTaskType(),
                       node.getTaskName(),
                       element.getElementRole(),
@@ -135,7 +135,7 @@ public class JobExport implements JobGraphVisitor{
 	}
 	
 	private static String fontcolor(Job_Task node){
-		if(node.isBlocked()){
+		if(node.isWaiting()){
 			return FONT_COLOR_LIGHT;
 		}
 		if(node.isSuspended()) {

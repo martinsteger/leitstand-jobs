@@ -24,13 +24,13 @@ import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobType.jobType;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.SKIPPED;
+import static io.leitstand.jobs.service.State.WAITING;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.SKIPPED;
 import static io.leitstand.security.auth.UserName.userName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -42,6 +42,8 @@ import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import io.leitstand.jobs.service.State;
 
 public class JobTest {
 	
@@ -108,9 +110,9 @@ public class JobTest {
 	    job.submit();
 
 	    assertEquals(READY,job.getJobState());
-	    verify(a).setTaskState(READY);
-        verify(b).setTaskState(READY);
-        verify(c).setTaskState(READY);
+	    verify(a).setTaskState(WAITING);
+        verify(b).setTaskState(WAITING);
+        verify(c).setTaskState(WAITING);
 	    
 	}
 	
@@ -122,7 +124,7 @@ public class JobTest {
         when(b.getTaskId()).thenReturn(randomTaskId());
         Job_Task c = mock(Job_Task.class);
         when(c.getTaskId()).thenReturn(randomTaskId());
-        job.setJobState(READY);
+        job.setJobState(State.READY);
 
         job.addTask(a);
         job.addTask(b);
@@ -143,12 +145,12 @@ public class JobTest {
 	    when(confirmed.isSuspended()).thenReturn(true);
 	    job.addTask(completed);
 	    job.addTask(confirmed);
-	    job.setJobState(CONFIRM);
+	    job.setJobState(State.CONFIRM);
 
 	    
 	    job.confirmed();
 	    
-	    assertEquals(CONFIRM,job.getJobState());
+	    assertEquals(State.CONFIRM,job.getJobState());
 	}
 	
     @Test
@@ -157,7 +159,7 @@ public class JobTest {
         Job_Task b = mock(Job_Task.class);
         job.addTask(a);
         job.addTask(b);
-        job.setJobState(CONFIRM);
+        job.setJobState(State.CONFIRM);
 
         job.confirmed();
         

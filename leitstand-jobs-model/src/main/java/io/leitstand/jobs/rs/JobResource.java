@@ -40,7 +40,7 @@ import io.leitstand.jobs.service.JobService;
 import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.JobTasks;
-import io.leitstand.jobs.service.TaskState;
+import io.leitstand.jobs.service.State;
 import io.leitstand.security.auth.Scopes;
 
 @Resource
@@ -127,7 +127,7 @@ public class JobResource {
 	}
 	
 	/**
-	 * @deprecated Use {@link #updateJobState(JobId, TaskState)} instead.
+	 * @deprecated Use {@link #updateJobState(JobId, State)} instead.
 	 * @param jobId
 	 * @param state
 	 */
@@ -135,7 +135,7 @@ public class JobResource {
 	@PUT
 	@Path("/{job_id}/job_state")
 	public void _updateJobState(@Valid @PathParam("job_id") JobId jobId, 
-	                           TaskState state){
+	                           State state){
 		service.updateJobState(jobId,state);
 	}
 	
@@ -143,7 +143,7 @@ public class JobResource {
 	@PUT
 	@Path("/{job_id}/settings/job_state")
 	public void updateJobState(@Valid @PathParam("job_id") JobId jobId, 
-	                           TaskState state){
+	                           State state){
 		service.updateJobState(jobId,state);
 	}
 	

@@ -71,7 +71,7 @@ public class BaseJobEnvelope extends ValueObject {
 			return (B) this;
 		}
 		
-		public B withJobState(TaskState state) {
+		public B withJobState(State state) {
 			assertNotInvalidated(getClass(), object);
 			((BaseJobEnvelope)object).jobState = state;
 			return (B) this;
@@ -116,7 +116,7 @@ public class BaseJobEnvelope extends ValueObject {
 	@JsonbProperty("job_owner")
 	private UserName jobOwner;
 	@JsonbProperty("job_state")
-	private TaskState jobState;
+	private State jobState;
 
 	public JobId getJobId() {
 		return jobId;
@@ -130,7 +130,7 @@ public class BaseJobEnvelope extends ValueObject {
 		return jobOwner;
 	}
 
-	public TaskState getJobState() {
+	public State getJobState() {
 		return jobState;
 	}
 	

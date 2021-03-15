@@ -19,6 +19,7 @@ import static io.leitstand.commons.jsonb.IsoDateAdapter.parseIsoDate;
 import static io.leitstand.jobs.rs.Scopes.JOB;
 import static io.leitstand.jobs.rs.Scopes.JOB_READ;
 import static io.leitstand.jobs.service.JobQuery.newJobQuery;
+import static java.lang.Boolean.parseBoolean;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.Date;
@@ -53,16 +54,16 @@ public class JobsResource {
 									 @QueryParam("after") String after,
 									 @QueryParam("before") String before){
 		
-		Date scheduledAfter = (after == null || after.isEmpty()) ? parseIsoDate(after) : null;
-		Date scheduledBefore = (before == null || before.isEmpty()) ? parseIsoDate(before) : null;
-		boolean runningOnly  = Boolean.parseBoolean(running);
+		Date scheduledAfter = parseIsoDate(after);
+		Date scheduledBefore = parseIsoDate(before);
+		boolean runningOnly  = parseBoolean(running);
 		
 		return service.findJobs(newJobQuery()
-					  .withFilter(filter)
-					  .withScheduledAfter(scheduledAfter)
-					  .withScheduledBefore(scheduledBefore)
-					  .withRunningOnly(runningOnly)
-					  .build());
+					            .withFilter(filter)
+					            .withScheduledAfter(scheduledAfter)
+					            .withScheduledBefore(scheduledBefore)
+					            .withRunningOnly(runningOnly)
+					            .build());
 		
 	}
 	

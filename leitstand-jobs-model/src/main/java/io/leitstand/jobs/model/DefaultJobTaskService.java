@@ -39,8 +39,8 @@ import io.leitstand.jobs.service.JobId;
 import io.leitstand.jobs.service.JobTaskInfo;
 import io.leitstand.jobs.service.JobTaskService;
 import io.leitstand.jobs.service.ReasonCode;
+import io.leitstand.jobs.service.State;
 import io.leitstand.jobs.service.TaskId;
-import io.leitstand.jobs.service.TaskState;
 
 @Service
 public class DefaultJobTaskService implements JobTaskService{
@@ -74,7 +74,7 @@ public class DefaultJobTaskService implements JobTaskService{
 	}
 	
 	@Override
-	public void updateTask(JobId jobId, TaskId taskId, TaskState state) {
+	public void updateTask(JobId jobId, TaskId taskId, State state) {
 		Job job = jobs.fetchJob(jobId);
 		Job_Task task = job.getTask(taskId);
 		if(task == null) {

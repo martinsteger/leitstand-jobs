@@ -20,7 +20,7 @@ import static io.leitstand.commons.jpa.BooleanConverter.parseBoolean;
 import static io.leitstand.commons.messages.MessageFactory.createMessage;
 import static io.leitstand.commons.model.ObjectUtil.not;
 import static io.leitstand.commons.model.ObjectUtil.optional;
-import static io.leitstand.jobs.model.Job_Task.setTaskStateToReadyForExecution;
+import static io.leitstand.jobs.model.Job_Task.setTaskStateToWaitingForExecution;
 import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobFlow.newJobFlow;
 import static io.leitstand.jobs.service.JobId.jobId;
@@ -43,15 +43,16 @@ import static io.leitstand.jobs.service.ReasonCode.JOB0108I_JOB_REMOVED;
 import static io.leitstand.jobs.service.ReasonCode.JOB0109E_CANNOT_COMMIT_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0110E_CANNOT_RESUME_COMPLETED_JOB;
 import static io.leitstand.jobs.service.ReasonCode.JOB0111E_JOB_NOT_REMOVABLE;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.CANCELLED;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.CONFIRM;
-import static io.leitstand.jobs.service.TaskState.FAILED;
-import static io.leitstand.jobs.service.TaskState.READY;
-import static io.leitstand.jobs.service.TaskState.REJECTED;
-import static io.leitstand.jobs.service.TaskState.TIMEOUT;
-import static io.leitstand.jobs.service.TaskState.taskState;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.CANCELLED;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.CONFIRM;
+import static io.leitstand.jobs.service.State.FAILED;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.REJECTED;
+import static io.leitstand.jobs.service.State.TIMEOUT;
+import static io.leitstand.jobs.service.State.WAITING;
+import static io.leitstand.jobs.service.State.taskState;
 import static io.leitstand.security.auth.UserName.userName;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -85,7 +86,7 @@ import io.leitstand.jobs.service.JobSettings;
 import io.leitstand.jobs.service.JobSubmission;
 import io.leitstand.jobs.service.JobTask;
 import io.leitstand.jobs.service.JobTasks;
-import io.leitstand.jobs.service.TaskState;
+import io.leitstand.jobs.service.State;
 import io.leitstand.security.auth.UserContext;
 @Service
 public class DefaultJobService implements JobService {
@@ -94,18 +95,20 @@ public class DefaultJobService implements JobService {
 	
 	static class TaskByStateCount {
 		
-		private int[] counts = new int[TaskState.values().length];
+		private int[] counts = new int[State.values().length];
 		
-		void increment(TaskState state) {
+		void increment(State state) {
 			counts[state.ordinal()]++;
 		}
 		
-		int getCount(TaskState state) {
+		int getCount(State state) {
 			return counts[state.ordinal()];
 		}
 		
 	}
 
+	@Inject
+	@Jobs
 	private Repository repository;
 	
 	@Inject
@@ -153,14 +156,7 @@ public class DefaultJobService implements JobService {
 		job.getTasks();
 		TaskByStateCount stats = new TaskByStateCount();
 		traverse(elements, job.getStart(),stats);
-		
-		return newJobProgress()
-			   .withActiveCount(stats.getCount(ACTIVE))
-			   .withReadyCount(stats.getCount(READY)+stats.getCount(CONFIRM))
-			   .withCompletedCount(stats.getCount(COMPLETED))
-			   .withFailedCount(stats.getCount(REJECTED)+stats.getCount(FAILED))
-			   .withTimeoutCount(stats.getCount(TIMEOUT))
-			   .build();
+		return jobProgress(stats);
 				
 	}
 	
@@ -226,7 +222,7 @@ public class DefaultJobService implements JobService {
 		if(job.isNew()) {
 
 		    // Set all tasks ready for execution
-		    repository.execute(setTaskStateToReadyForExecution(job));
+		    repository.execute(setTaskStateToWaitingForExecution(job));
 
 		    // Execute now, if no execution date is set
     		if(job.getDateScheduled() == null) {
@@ -248,7 +244,7 @@ public class DefaultJobService implements JobService {
     		return;
 		}
 		
-        LOG.fine(() -> format("%s: Job %s (%s) is already committed (%s) and cannot be committed again. Owner: ",
+        LOG.fine(() -> format("%s: Job %s (%s) is already committed (%s) and cannot be committed again. Owner: %s",
                               JOB0109E_CANNOT_COMMIT_JOB.getReasonCode(),
                               job.getJobName(),
                               job.getJobId(),
@@ -318,17 +314,11 @@ public class DefaultJobService implements JobService {
 		TaskByStateCount stats = new TaskByStateCount();
 		Set<Job_Task> elements = new LinkedHashSet<>();
 		traverse(elements, job.getStart(),stats);
-		
 			
-		JobProgress progress = newJobProgress()
-							   .withActiveCount(stats.getCount(ACTIVE))
-							   .withReadyCount(stats.getCount(READY))
-							   .withCompletedCount(stats.getCount(COMPLETED)+stats.getCount(CONFIRM))
-							   .withFailedCount(stats.getCount(REJECTED)+stats.getCount(FAILED))
-							   .withTimeoutCount(stats.getCount(TIMEOUT))
-							   .build();
+		JobProgress progress = jobProgress(stats);
 				
 		ElementGroupSettings group = inventory.getGroupSettings(job.getGroupId());
+
 		return newJobInfo()
 			   .withJobId(job.getJobId())
 			   .withJobApplication(job.getJobApplication())
@@ -346,6 +336,17 @@ public class DefaultJobService implements JobService {
 					   		 .withAutoResume(job.isAutoResume()))
 			   .build();
 	}
+
+    private JobProgress jobProgress(TaskByStateCount stats) {
+        return newJobProgress()
+               .withActiveCount(stats.getCount(ACTIVE))
+               .withReadyCount(stats.getCount(READY))
+               .withCompletedCount(stats.getCount(COMPLETED)+stats.getCount(CONFIRM))
+			   .withFailedCount(stats.getCount(REJECTED)+stats.getCount(FAILED))
+			   .withTimeoutCount(stats.getCount(TIMEOUT))
+			   .withWaitingCount(stats.getCount(WAITING))
+			   .build();
+    }
 
 
 	private JobTask taskInfo(Job_Task task) {
@@ -387,7 +388,7 @@ public class DefaultJobService implements JobService {
 			job.getTaskList()
 			   .stream()
 			   .filter(Job_Task::isResumable)
-			   .forEach(task -> task.setTaskState(READY));
+			   .forEach(task -> task.setTaskState(WAITING));
 			job.setJobState(ACTIVE);
 		}
 
@@ -443,15 +444,15 @@ public class DefaultJobService implements JobService {
 									.withJobOwner(userName(rs.getString(6)))
 									.withDateModified(rs.getTimestamp(7))
 									.withSchedule(newJobSchedule()
-												     .withAutoResume(parseBoolean(rs.getString(8)))
-												     .withStartTime(rs.getTimestamp(9))
-												     .withEndTime(rs.getTimestamp(10))
-												     .build())
+												  .withAutoResume(parseBoolean(rs.getString(8)))
+												  .withStartTime(rs.getTimestamp(9))
+												  .withEndTime(rs.getTimestamp(10))
+												  .build())
 									.build());
 	}
 
 	@Override
-	public void updateJobState(JobId jobId, TaskState state) {
+	public void updateJobState(JobId jobId, State state) {
 		Job job = jobs.fetchJob(jobId);
 		job.setJobState(state);	
 	}
@@ -461,9 +462,9 @@ public class DefaultJobService implements JobService {
 		Job job = jobs.fetchJob(jobId);
 		if(job.isCompleted()) {
 		    LOG.fine(() -> format("%s: Cannot cancel completed %s job (%s)",
-		                         JOB0106E_CANNOT_CANCEL_COMPLETED_JOB.getReasonCode(),
-		                         job.getJobName(),
-		                         job.getJobId()));
+		                          JOB0106E_CANNOT_CANCEL_COMPLETED_JOB.getReasonCode(),
+		                          job.getJobName(),
+		                          job.getJobId()));
 		    throw new ConflictException(JOB0106E_CANNOT_CANCEL_COMPLETED_JOB,
 		                                jobId);
 		}
@@ -476,7 +477,7 @@ public class DefaultJobService implements JobService {
 		job.getTaskList()
 		   .stream()
 		   .filter(not(Job_Task::isTerminated))
-		   .forEach(task -> task.setTaskState(CANCELLED));
+		   .forEach(task -> task.setTaskState(State.CANCELLED));
 	}
 
 	@Override
@@ -486,7 +487,7 @@ public class DefaultJobService implements JobService {
 		    job.getTaskList()
 		       .stream()
 		       .filter(Job_Task::isSuspended)
-		       .forEach(task -> task.setTaskState(COMPLETED));
+		       .forEach(task -> task.setTaskState(State.COMPLETED));
 		    
 		    job.confirmed();
 		    job.completed();

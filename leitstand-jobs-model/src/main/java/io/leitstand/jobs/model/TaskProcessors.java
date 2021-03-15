@@ -38,8 +38,8 @@ public class TaskProcessors {
 	
 	private JobApplication jobApplication;
 	private JobType jobType;
-	private TaskProcessor defaultTaskProcessor;
-	private Map<TaskType,TaskProcessor> taskProcessors;
+	private TaskProcessor defaultProcessor;
+	private Map<TaskType,TaskProcessor> processors;
 	
 	protected TaskProcessors() {
 		// CDI
@@ -47,7 +47,7 @@ public class TaskProcessors {
 	
 	protected TaskProcessors(JobApplication jobApplication) {
 		this.jobApplication = jobApplication;
-		this.taskProcessors = new HashMap<>();
+		this.processors = new HashMap<>();
 	}
 	
 	public TaskProcessors jobType(JobType jobType) {
@@ -61,7 +61,7 @@ public class TaskProcessors {
 	}
 	
 	public TaskProcessors taskProcessor(TaskType taskType, TaskProcessor taskProcessor) {
-		taskProcessors.put(taskType,taskProcessor);
+		processors.put(taskType,taskProcessor);
 		LOG.fine(() -> format("Register %s task processor for %s task type in %s jobs in %s applications",
 		                      taskProcessor.getClass().getName(),
 		                      taskType,
@@ -71,7 +71,7 @@ public class TaskProcessors {
 	}
 
 	public TaskProcessors defaultProcessor(TaskProcessor taskProcessor) {
-		this.defaultTaskProcessor = taskProcessor;
+		this.defaultProcessor = taskProcessor;
         LOG.fine(() -> format("Register %s task processor as default task processor for %s jobs in %s applications",
                               taskProcessor.getClass().getName(),
                               ObjectUtil.optional(jobType, JobType::getValue, "*"),
@@ -87,11 +87,11 @@ public class TaskProcessors {
 	}
 	
 	public TaskProcessor getTaskProcessor(TaskType taskType) {
-		TaskProcessor taskProcessor = taskProcessors.get(taskType);
+		TaskProcessor taskProcessor = processors.get(taskType);
 		if(taskProcessor != null) {
 			return taskProcessor;
 		}
-		return defaultTaskProcessor;
+		return defaultProcessor;
 	}
 
 }

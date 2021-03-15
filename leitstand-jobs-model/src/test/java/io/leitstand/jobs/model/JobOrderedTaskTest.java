@@ -8,11 +8,12 @@ import static io.leitstand.jobs.service.JobApplication.jobApplication;
 import static io.leitstand.jobs.service.JobId.randomJobId;
 import static io.leitstand.jobs.service.JobName.jobName;
 import static io.leitstand.jobs.service.JobType.jobType;
+import static io.leitstand.jobs.service.State.ACTIVE;
+import static io.leitstand.jobs.service.State.COMPLETED;
+import static io.leitstand.jobs.service.State.READY;
+import static io.leitstand.jobs.service.State.WAITING;
 import static io.leitstand.jobs.service.TaskId.randomTaskId;
 import static io.leitstand.jobs.service.TaskName.taskName;
-import static io.leitstand.jobs.service.TaskState.ACTIVE;
-import static io.leitstand.jobs.service.TaskState.COMPLETED;
-import static io.leitstand.jobs.service.TaskState.READY;
 import static io.leitstand.jobs.service.TaskType.taskType;
 import static io.leitstand.security.auth.UserName.userName;
 import static io.leitstand.testing.ut.LeitstandCoreMatchers.hasSizeOf;
@@ -226,11 +227,11 @@ public class JobOrderedTaskTest {
         upgradeLeaf2.setTaskState(COMPLETED);
         pingLeaf1.setTaskState(READY);
         pingLeaf2.setTaskState(COMPLETED);
-        joinLeafUpgrades.setTaskState(READY);
-        upgradeSpine1.setTaskState(READY);
-        upgradeSpine2.setTaskState(READY);
-        pingSpine1.setTaskState(READY);
-        pingSpine2.setTaskState(READY);
+        joinLeafUpgrades.setTaskState(WAITING);
+        upgradeSpine1.setTaskState(WAITING);
+        upgradeSpine2.setTaskState(WAITING);
+        pingSpine1.setTaskState(WAITING);
+        pingSpine2.setTaskState(WAITING);
         
         job.setStart(start);
         when(jobs.fetchJob(JOB_ID)).thenReturn(job);
@@ -287,22 +288,22 @@ public class JobOrderedTaskTest {
                 "Upgrade spine1\n"+
                 "spine\n"+
                 "spine1\n" + 
-                "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine1\"];\n" + 
+                "WAITING\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine1\"];\n" + 
                 "T5 [id=\""+pingSpine1.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"ping\n" + 
                 "Ping spine1\n"+
                 "spine\n" + 
                 "spine1\n"+
-                "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine1\"];\n" + 
+                "WAITING\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine1\"];\n" + 
                 "T6 [id=\""+upgradeSpine2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
                 "Upgrade spine2\n"+
                 "spine\n"+
                 "spine2\n" + 
-                "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine2\"];\n" + 
+                "WAITING\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Upgrade spine2\"];\n" + 
                 "T7 [id=\""+pingSpine2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"ping\n" + 
                 "Ping spine2\n"+
                 "spine\n"+
                 "spine2\n" + 
-                "READY\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine2\"];\n" + 
+                "WAITING\" style=\"filled\" color=\"#A0A0A0\" tooltip=\"Task Ping spine2\"];\n" + 
                 "T8 [id=\""+upgradeLeaf2.getTaskId()+"\" shape=\"box\" fontname=\"Arial\" fontsize=\"11\" fontweight=\"bold\" fontcolor=\"white\" label=\"upgrade\n" + 
                 "Upgrade leaf2\n"+
                 "accessleaf\n"+

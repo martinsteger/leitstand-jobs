@@ -33,17 +33,18 @@ public class TaskProcessorDiscoveryService {
 	@Inject
 	private Instance<TaskProcessors> processors;
 	
+
 	public TaskProcessor findElementTaskProcessor(Job_Task task) {
 		for(TaskProcessors tasks : processors) {
 			if(tasks.providesTaskProcessorsFor(task.getJobApplication(), 
 			                                   task.getJobType())) {
 				TaskProcessor processor = tasks.getTaskProcessor(task.getTaskType());
 				if(processor != null) {
-				    LOG.fine(format("Found %s task processor for %s task of %s job in %s",
-				                    processor.getClass().getName(),
-				                    task.getTaskType(),
-				                    task.getJobType(),
-				                    task.getJobApplication()));
+				    LOG.fine(() -> format("Found %s task processor for %s task of %s job in %s",
+				                          processor.getClass().getName(),
+				                          task.getTaskType(),
+				                          task.getJobType(),
+				                          task.getJobApplication()));
 				    return processor;
 				}
 			}
