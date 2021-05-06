@@ -2,7 +2,8 @@
 (c) RtBrick, Inc - All rights reserved, 2015 - 2017
 -->
 <ui-view-header>
-	<ui-subtitle>Review the currently active or scheduled jobs and their respective tasks.</ui-subtitle>
+    <ui-title>Jobs</ui-title>
+	<ui-subtitle>List of scheduled maintenance jobs.</ui-subtitle>
 </ui-view-header>
 <ui-form>
 	<ui-filter name="filter" bind="query.filter">
@@ -32,7 +33,7 @@
 			<th class="text">Name</th>
 			<th class="text">Application</th>
 			<th class="text">Type</th>
-			<th class="tiny">State</th>
+			<th class="check">State</th>
 			<th>Scheduled at</th>
 			<th>Last modified</th>
 		</tr>
@@ -43,7 +44,7 @@
 				<td class="text" ><a href="/ui/views/job/tasks.html?job={{job_id}}" title="Show job details">{{job_name}}</a></td>
 				<td class="text" >{{job_application}}</td>
 				<td class="text" >{{job_type}}</td>
-				<td><span class="{{job_state}}">{{job_state}}</span></td>
+				<td class="check"><span class="{{job_state}}">{{job_state}}</span></td>
 				<td><ui-date readonly>{{schedule.date_scheduled}}</ui-date></td>
 				<td><ui-date readonly>{{date_modified}}</ui-date></td>
 			</tr>
